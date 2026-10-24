@@ -27,8 +27,9 @@ extension Font {
     static let meta13 = geist(13, relativeTo: .footnote)
     static let meta12 = geist(12, relativeTo: .caption)
 
+    /// Songti SC is not installed on iOS by default, so the reading face is a bundled Noto Serif SC.
     static func chineseSerif(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .custom("Songti SC", size: size).weight(weight)
+        .custom("NotoSerifSC-Regular", size: size).weight(weight)
     }
 
     static func chineseSans(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {

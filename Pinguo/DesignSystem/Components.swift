@@ -120,3 +120,51 @@ extension SectionHeader where Trailing == EmptyView {
         self.init(title: title) { EmptyView() }
     }
 }
+
+struct FamiliarityBar: View {
+    let familiarity: Familiarity
+    let onChange: (Familiarity) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Familiarity").font(.meta13).foregroundStyle(Color.inkSecondary)
+                Spacer()
+                Text(familiarity.label).font(.geist(13, .semibold)).foregroundStyle(Color.ink)
+            }
+            HStack(spacing: 4) {
+                ForEach(Familiarity.allCases, id: \.self) { level in
+                    Button {
+                        onChange(level)
+                    } label: {
+                        Capsule()
+                            .fill(level.rawValue <= familiarity.rawValue ? Color.ink : Color.hairline)
+                            .frame(height: 4)
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(level.label)
+                }
+            }
+            .frame(height: 32)
+            .padding(.top, -12)
+            .padding(.bottom, -12)
+        }
+    }
+}
+
+struct ProgressLine: View {
+    let value: Double
+    var height: CGFloat = 3
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.hairline)
+                Capsule().fill(Color.ink).frame(width: proxy.size.width * min(1, max(0, value)))
+            }
+        }
+        .frame(height: height)
+    }
+}

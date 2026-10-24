@@ -14,11 +14,19 @@
 			remoteGlobalIDString = A10000000000000000000100;
 			remoteInfo = Pinguo;
 		};
+		A10000000000000000000303 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10000000000000000000100;
+			remoteInfo = Pinguo;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		A10000000000000000000010 /* Pinguo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Pinguo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000011 /* PinguoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PinguoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000012 /* PinguoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PinguoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -45,6 +53,11 @@
 			path = PinguoTests;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000022 /* PinguoUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PinguoUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -62,6 +75,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000811 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -70,6 +90,7 @@
 			children = (
 				A10000000000000000000020 /* Pinguo */,
 				A10000000000000000000021 /* PinguoTests */,
+				A10000000000000000000022 /* PinguoUITests */,
 				A10000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -79,6 +100,7 @@
 			children = (
 				A10000000000000000000010 /* Pinguo.app */,
 				A10000000000000000000011 /* PinguoTests.xctest */,
+				A10000000000000000000012 /* PinguoUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -131,6 +153,29 @@
 			productReference = A10000000000000000000011 /* PinguoTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		A10000000000000000000800 /* PinguoUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000900 /* Build configuration list for PBXNativeTarget "PinguoUITests" */;
+			buildPhases = (
+				A10000000000000000000810 /* Sources */,
+				A10000000000000000000811 /* Frameworks */,
+				A10000000000000000000812 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000304 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000022 /* PinguoUITests */,
+			);
+			name = PinguoUITests;
+			packageProductDependencies = (
+			);
+			productName = PinguoUITests;
+			productReference = A10000000000000000000012 /* PinguoUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -145,6 +190,10 @@
 						CreatedOnToolsVersion = 26.0;
 					};
 					A10000000000000000000200 = {
+						CreatedOnToolsVersion = 26.0;
+						TestTargetID = A10000000000000000000100;
+					};
+					A10000000000000000000800 = {
 						CreatedOnToolsVersion = 26.0;
 						TestTargetID = A10000000000000000000100;
 					};
@@ -167,6 +216,7 @@
 			targets = (
 				A10000000000000000000100 /* Pinguo */,
 				A10000000000000000000200 /* PinguoTests */,
+				A10000000000000000000800 /* PinguoUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -180,6 +230,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A10000000000000000000212 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000812 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -203,6 +260,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000810 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -211,9 +275,48 @@
 			target = A10000000000000000000100 /* Pinguo */;
 			targetProxy = A10000000000000000000301 /* PBXContainerItemProxy */;
 		};
+		A10000000000000000000304 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000100 /* Pinguo */;
+			targetProxy = A10000000000000000000303 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		A10000000000000000000901 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdawes.pinguo.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Pinguo;
+			};
+			name = Debug;
+		};
+		A10000000000000000000902 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.mdawes.pinguo.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Pinguo;
+			};
+			name = Release;
+		};
 		A10000000000000000000701 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -372,6 +475,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		A10000000000000000000900 /* Build configuration list for PBXNativeTarget "PinguoUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000901 /* Debug */,
+				A10000000000000000000902 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		A10000000000000000000500 /* Build configuration list for PBXNativeTarget "Pinguo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

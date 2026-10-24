@@ -86,6 +86,16 @@ def pinyin_with_tone_marks(numbered: str) -> str:
     return joined
 
 
+def normalize_trailing_le(simplified: str, numbered: str) -> str:
+    """CEDICT reads many verb + 了 compounds (到了, 为了) as liao3; in running text that 了 is the particle le."""
+    if not simplified.endswith("了") or len(simplified) < 2 or simplified[-2] in "不得":
+        return numbered
+    syllables = numbered.split()
+    if syllables and syllables[-1].lower() == "liao3":
+        syllables[-1] = "le5"
+    return " ".join(syllables)
+
+
 def tones_of(numbered: str) -> str:
     tones = []
     for syllable in numbered.split():
@@ -187,9 +197,10 @@ def build(cedict_text, hsk):
     for simplified, candidates in by_simplified.items():
         info = hsk_by_word.get(simplified)
         primary = choose_primary(simplified, candidates, info)
+        primary = {**primary, "pinyin": normalize_trailing_le(simplified, primary["pinyin"])}
         others = [
             {"pinyin": pinyin_with_tone_marks(c["pinyin"]), "definitions": c["definitions"]}
-            for c in candidates if c is not primary
+            for c in candidates if c["order"] != primary["order"]
         ]
         rows.append((
             simplified,

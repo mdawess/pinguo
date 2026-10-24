@@ -3,7 +3,7 @@ import SwiftUI
 
 @main
 struct PinguoApp: App {
-    let modelContainer = PinguoStore.makeContainer()
+    let modelContainer = PinguoStore.makeContainer(inMemory: ProcessInfo.processInfo.arguments.contains("-PinguoInMemoryStore"))
 
     var body: some Scene {
         WindowGroup {
