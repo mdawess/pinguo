@@ -28,3 +28,40 @@ struct EPUBParserTests {
 }
 
 final class FixtureLocator {}
+
+struct ArticleExtractorTests {
+    @Test func keepsArticleParagraphsAndDropsBoilerplate() throws {
+        let html = """
+        <html><head><title>人工智能如何改变制造业 | 新闻网</title><meta charset="utf-8"></head>
+        <body><nav><a href="/">首页</a><a href="/news">新闻</a></nav>
+        <div class="ad"><p><a href="/buy">点击这里购买最新的手机和电脑产品</a></p></div>
+        <article><h1>人工智能如何改变制造业</h1>
+        <p>近年来，人工智能技术在制造业中的应用越来越广泛。</p>
+        <p>很多工厂开始使用机器人和智能系统，提高了生产效率。</p></article>
+        <footer><p>版权所有，未经许可不得转载本网站的任何内容。</p></footer></body></html>
+        """
+        let book = try ArticleExtractor.extract(html: html, url: URL(string: "https://example.com/a"))
+        #expect(book.title == "人工智能如何改变制造业")
+        let text = book.chapters[0].text
+        #expect(text.contains("提高了生产效率"))
+        #expect(!text.contains("版权所有"))
+        #expect(!text.contains("购买"))
+    }
+
+    @Test func reflowsHardWrappedPDFLines() {
+        let wrapped = "周末的早上，我和朋友去了城外的一\n座小山。山不高，但是路很长。\n第二段开始了，我们一边走一边聊\n天。"
+        #expect(PDFImporter.reflow(wrapped) == "周末的早上，我和朋友去了城外的一座小山。山不高，但是路很长。\n第二段开始了，我们一边走一边聊天。")
+    }
+}
+
+struct PDFImporterTests {
+    @Test func extractsAndReflowsText() throws {
+        let url = Bundle(for: FixtureLocator.self).url(forResource: "hill", withExtension: "pdf")!
+        let book = try PDFImporter.parse(url: url)
+        #expect(book.title == "小山游记")
+        #expect(book.coverImage != nil)
+        let paragraphs = book.chapters.map(\.text).joined(separator: "\n").components(separatedBy: "\n")
+        #expect(paragraphs.first?.hasPrefix("周末的早上，我和朋友去了城外的一座小山。") == true)
+        #expect(paragraphs.contains { $0.contains("这里的风景比照片上的好看多了") })
+    }
+}

@@ -7,6 +7,10 @@ struct SentenceSplittingTests {
         #expect(sentences == ["他说：“你好！”", "我们走吧。", "好吗？"])
     }
 
+    @Test func normalizesRadicalCodePointsButNotPunctuation() {
+        #expect(ChineseText.normalizingRadicals("⼀座⼩⼭，好！") == "一座小山，好！")
+    }
+
     @Test func splitsParagraphsOnLineBreaks() {
         let paragraphs = ChineseText.paragraphs(from: "第一段。第二句。\n\n　　第二段")
         #expect(paragraphs == [["第一段。", "第二句。"], ["第二段"]])

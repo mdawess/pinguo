@@ -7,6 +7,7 @@ enum AppTab: Hashable {
 
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .library
     @State private var wordStates: WordStateStore?
     @State private var settings: AppSettings?
@@ -25,6 +26,9 @@ struct RootView: View {
                 Color.background.ignoresSafeArea()
             }
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { importSharedItems() }
+        }
         .onChange(of: player.speed) { _, speed in settings?.playbackSpeed = speed }
         .onOpenURL { url in
             importOpenedFile(url)
@@ -39,21 +43,61 @@ struct RootView: View {
             #if DEBUG
             importLaunchArgumentFile()
             #endif
+            importSharedItems()
             Task.detached(priority: .utility) { _ = ChineseDictionary.shared.headwords }
         }
     }
 
     private func importOpenedFile(_ url: URL) {
         guard url.isFileURL, let local = try? ImportCoordinator.copyToTemporaryLocation(url) else { return }
-        let isEPUB = url.pathExtension.lowercased() == "epub"
+        let extensionName = url.pathExtension.lowercased()
+        let source: ImportSource = switch extensionName {
+        case "epub": .epub(local)
+        case "pdf": .pdf(local)
+        default: .textFile(local)
+        }
         ImportCoordinator.start(
-            isEPUB ? .epub(local) : .textFile(local),
+            source,
             title: url.deletingPathExtension().lastPathComponent,
-            kind: .epub,
+            kind: extensionName == "pdf" ? .pdf : .epub,
             makesCardsFromTaps: settings?.makeCardsFromTapsByDefault ?? true,
             pregeneratingAudioWith: settings.flatMap { $0.pregenerateAudioByDefault ? ($0.resolvedVoiceID, $0.voiceModelID) : nil },
             in: modelContext
         )
+        selectedTab = .library
+    }
+
+    /// Picks up links, text and files sent from the share extension.
+    private func importSharedItems() {
+        guard let settings else { return }
+        let items = PendingImports.drain()
+        guard !items.isEmpty else { return }
+        for item in items {
+            switch item.kind {
+            case .url:
+                ImportCoordinator.start(
+                    .article(item.value),
+                    title: item.title ?? item.value,
+                    kind: .article,
+                    sourceURL: item.value,
+                    makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
+                    in: modelContext
+                )
+            case .text:
+                ImportCoordinator.start(
+                    .pastedText(title: "", text: item.value),
+                    title: DocumentImporter.defaultTitle(for: item.value),
+                    kind: .text,
+                    makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
+                    in: modelContext
+                )
+            case .file:
+                if let url = PendingImports.fileURL(for: item) {
+                    importOpenedFile(url)
+                    try? FileManager.default.removeItem(at: url)
+                }
+            }
+        }
         selectedTab = .library
     }
 

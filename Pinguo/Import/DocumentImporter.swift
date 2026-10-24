@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 
 enum ImportSource: Sendable {
     case epub(URL)
+    case pdf(URL)
+    case article(String)
     case textFile(URL)
     case pastedText(title: String, text: String)
     case prepared(ParsedBook)
@@ -20,9 +22,18 @@ actor DocumentImporter {
     func run(_ source: ImportSource, into documentID: PersistentIdentifier) async {
         guard let document = modelContext.model(for: documentID) as? Document else { return }
         do {
-            let book = try Self.parse(source, fallbackTitle: document.title)
+            let book: ParsedBook
+            switch source {
+            case .article(let address):
+                book = try await ArticleExtractor.fetch(address)
+            case .pdf(let url):
+                book = try PDFImporter.parse(url: url)
+            default:
+                book = try Self.parse(source, fallbackTitle: document.title)
+            }
             document.title = book.title
             document.author = book.author
+            if case .article(let address) = source { document.sourceURL = address }
             if let cover = book.coverImage {
                 document.coverImage = Self.downsampledJPEG(cover, maxPixelSize: 600)
             }
@@ -53,7 +64,8 @@ actor DocumentImporter {
             chapter.document = document
 
             var sentenceIndex = 0
-            for (paragraphIndex, paragraph) in ChineseText.paragraphs(from: parsedChapter.text).enumerated() {
+            let text = ChineseText.normalizingRadicals(parsedChapter.text)
+            for (paragraphIndex, paragraph) in ChineseText.paragraphs(from: text).enumerated() {
                 for text in paragraph {
                     let tokens = segmenter.tokens(in: text)
                     for token in tokens where token.isLexical {
@@ -89,6 +101,10 @@ actor DocumentImporter {
             return ParsedBook(title: resolvedTitle, author: nil, coverImage: nil, chapters: splitIntoChapters(text))
         case .prepared(let book):
             return book
+        case .pdf(let url):
+            return try PDFImporter.parse(url: url)
+        case .article:
+            throw ArticleExtractor.ArticleError.noContent
         }
     }
 

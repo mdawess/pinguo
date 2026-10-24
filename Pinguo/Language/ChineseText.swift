@@ -18,6 +18,25 @@ nonisolated enum ChineseText {
         text.unicodeScalars.filter(isHan).count
     }
 
+    /// PDFs often encode common characters as Kangxi or CJK radical code points (⼀ ⼩ ⼭); map those back to the
+    /// unified ideographs (一 小 山) without the side effects of full NFKC, which would also rewrite punctuation.
+    static func normalizingRadicals(_ text: String) -> String {
+        guard text.unicodeScalars.contains(where: isRadical) else { return text }
+        var scalars = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            if isRadical(scalar) {
+                scalars.append(contentsOf: String(scalar).precomposedStringWithCompatibilityMapping.unicodeScalars)
+            } else {
+                scalars.append(scalar)
+            }
+        }
+        return String(scalars)
+    }
+
+    private static func isRadical(_ scalar: Unicode.Scalar) -> Bool {
+        (0x2E80...0x2EFF).contains(scalar.value) || (0x2F00...0x2FDF).contains(scalar.value)
+    }
+
     static let sentenceTerminators: Set<Character> = ["。", "！", "？", "!", "?", "…", "；"]
     static let closingPunctuation: Set<Character> = ["”", "’", "」", "』", "）", ")", "》", "\"", "'", "】"]
 

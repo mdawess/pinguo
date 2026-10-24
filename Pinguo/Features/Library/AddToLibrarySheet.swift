@@ -9,6 +9,7 @@ struct AddToLibrarySheet: View {
     @State private var showsFileImporter = false
     @State private var showsPasteText = false
     @State private var errorMessage: String?
+    @State private var articleAddress = ""
 
     var body: some View {
         @Bindable var settings = settings
@@ -16,6 +17,7 @@ struct AddToLibrarySheet: View {
             ScrollView {
                 VStack(spacing: 14) {
                     uploadCard
+                    articleCard
                     AddRow(icon: "text.alignleft", title: "Paste text", subtitle: nil) {
                         showsPasteText = true
                     }
@@ -71,6 +73,7 @@ struct AddToLibrarySheet: View {
 
     static let importableTypes: [UTType] = [
         UTType(filenameExtension: "epub") ?? .epub,
+        .pdf,
         .plainText,
         .utf8PlainText,
     ]
@@ -82,7 +85,7 @@ struct AddToLibrarySheet: View {
                 .frame(width: 48, height: 48)
                 .background(Circle().fill(Color.background))
             Text("Upload a book or document").font(.geist(17, .medium)).padding(.top, 6)
-            Text("EPUB or TXT · split into chapters automatically")
+            Text("EPUB, PDF or TXT · split into chapters automatically")
                 .font(.meta13)
                 .foregroundStyle(Color.inkSecondary)
                 .multilineTextAlignment(.center)
@@ -94,6 +97,44 @@ struct AddToLibrarySheet: View {
         .padding(.vertical, 28)
         .padding(.horizontal, 16)
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color.surface))
+    }
+
+    private var articleCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Import an article").font(.geist(16, .medium))
+            HStack(spacing: 10) {
+                TextField("Paste a link", text: $articleAddress)
+                    .font(.body15)
+                    .keyboardType(.URL)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.go)
+                    .onSubmit(importArticle)
+                    .padding(.horizontal, 14)
+                    .frame(height: 44)
+                    .background(RoundedRectangle(cornerRadius: 12).strokeBorder(Color.hairline))
+                Button("Import", action: importArticle)
+                    .buttonStyle(PillButtonStyle(kind: .secondary, height: 44))
+                    .disabled(articleAddress.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(16)
+        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.hairline))
+    }
+
+    private func importArticle() {
+        let address = articleAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !address.isEmpty else { return }
+        ImportCoordinator.start(
+            .article(address),
+            title: URL(string: address)?.host ?? address,
+            kind: .article,
+            sourceURL: address,
+            makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
+            pregeneratingAudioWith: pregenerationVoice,
+            in: modelContext
+        )
+        dismiss()
     }
 
     private var pregenerationVoice: (voiceID: String, modelID: String)? {
@@ -111,6 +152,9 @@ struct AddToLibrarySheet: View {
             case "epub":
                 source = .epub(local)
                 kind = .epub
+            case "pdf":
+                source = .pdf(local)
+                kind = .pdf
             default:
                 source = .textFile(local)
                 kind = .epub
