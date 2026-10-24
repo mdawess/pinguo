@@ -24,6 +24,19 @@ final class ReviewStore {
         dueCount = dueQueue().count
     }
 
+    /// Up to `limit` words from the deck that are due soonest or were added most recently, for the tutor to reuse.
+    func practiceWords(limit: Int = 20) -> [String] {
+        let cards = ((try? context.fetch(FetchDescriptor<Card>())) ?? []).filter { $0.kind == .word }
+        let dueSoon = cards.filter { $0.state != .new }.sorted { $0.due < $1.due }
+        let recent = cards.sorted { $0.createdAt > $1.createdAt }
+        var words: [String] = []
+        for card in dueSoon.prefix(limit / 2) + recent where !words.contains(card.word) {
+            words.append(card.word)
+            if words.count == limit { break }
+        }
+        return words
+    }
+
     func hasCard(for word: String) -> Bool {
         cardWords.contains(word)
     }

@@ -140,6 +140,50 @@ nonisolated struct ElevenLabsClient: Sendable {
         return id
     }
 
+    nonisolated struct Transcript: Sendable {
+        struct Word: Sendable {
+            let text: String
+            let start: Double
+            let end: Double
+        }
+
+        let text: String
+        let words: [Word]
+    }
+
+    /// Scribe speech-to-text, used when on-device recognition fails and for English audio files.
+    func transcribe(fileURL: URL, languageCode: String?) async throws -> Transcript {
+        guard let apiKey = APIKeys.key(for: .elevenLabs) else { throw ServiceError.missingKey(.elevenLabs) }
+        let boundary = "pinguo-\(UUID().uuidString)"
+        var body = Data()
+        func field(_ name: String, _ value: String) {
+            body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n\(value)\r\n".utf8))
+        }
+        field("model_id", "scribe_v1")
+        if let languageCode { field("language_code", languageCode) }
+        field("timestamps_granularity", "word")
+        body.append(Data("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(fileURL.lastPathComponent)\"\r\nContent-Type: application/octet-stream\r\n\r\n".utf8))
+        body.append(try Data(contentsOf: fileURL))
+        body.append(Data("\r\n--\(boundary)--\r\n".utf8))
+
+        var request = URLRequest(url: Self.base.appending(path: "v1/speech-to-text"))
+        request.httpMethod = "POST"
+        request.timeoutInterval = 300
+        request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "content-type")
+        request.httpBody = body
+        let (data, response) = try await session.data(for: request)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status), let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+            throw ServiceError.http(status: status, message: String(decoding: data.prefix(300), as: UTF8.self))
+        }
+        let words = (json["words"] as? [[String: Any]] ?? []).compactMap { raw -> Transcript.Word? in
+            guard raw["type"] as? String != "spacing", let text = raw["text"] as? String else { return nil }
+            return Transcript.Word(text: text, start: raw["start"] as? Double ?? 0, end: raw["end"] as? Double ?? 0)
+        }
+        return Transcript(text: json["text"] as? String ?? "", words: words)
+    }
+
     private func send(url: URL, method: String, body: [String: Any]?) async throws -> [String: Any] {
         guard let apiKey = APIKeys.key(for: .elevenLabs) else { throw ServiceError.missingKey(.elevenLabs) }
         var request = URLRequest(url: url)

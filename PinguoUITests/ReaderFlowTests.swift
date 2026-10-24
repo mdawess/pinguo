@@ -99,4 +99,21 @@ final class ReaderFlowTests: XCTestCase {
         // Good on a new card schedules a 10 minute learning step, which the session pulls forward.
         XCTAssertTrue(app.staticTexts["1 / 2"].waitForExistence(timeout: 5))
     }
+
+    func testConversationRepliesAndCorrects() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] == nil, "Needs TEST_RUNNER_ANTHROPIC_API_KEY")
+        let app = launch()
+        app.tabBars.buttons["Speak"].tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Ordering coffee'")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["Translate"].firstMatch.waitForExistence(timeout: 60))
+        snapshot(app, "conversation-opening")
+
+        app.buttons["Type instead"].tap()
+        let field = app.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.typeText("我要一杯拿铁，热。\n")
+        XCTAssertTrue(app.staticTexts["More natural"].waitForExistence(timeout: 60))
+        sleep(1)
+        snapshot(app, "conversation-correction")
+    }
 }

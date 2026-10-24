@@ -27,6 +27,8 @@ enum PinguoStore {
         AppSettings.self,
         Card.self,
         ReviewLog.self,
+        Conversation.self,
+        Message.self,
     ])
 
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {

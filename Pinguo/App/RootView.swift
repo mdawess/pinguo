@@ -120,7 +120,7 @@ struct RootView: View {
             }
             .badge(reviews?.dueCount ?? 0)
             Tab("Speak", systemImage: "bubble", value: AppTab.speak) {
-                PlaceholderScreen(title: "Speak")
+                SpeakHomeView()
             }
             Tab("Progress", systemImage: "person", value: AppTab.progress) {
                 NavigationStack {
