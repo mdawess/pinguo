@@ -7,6 +7,7 @@ enum ImportSource: Sendable {
     case epub(URL)
     case pdf(URL)
     case article(String)
+    case englishAudio(URL, adaptToHSK: Int?)
     case textFile(URL)
     case pastedText(title: String, text: String)
     case prepared(ParsedBook)
@@ -22,6 +23,13 @@ actor DocumentImporter {
     func run(_ source: ImportSource, into documentID: PersistentIdentifier) async {
         guard let document = modelContext.model(for: documentID) as? Document else { return }
         do {
+            if case .englishAudio(let url, let level) = source {
+                try await importEnglishAudio(url, adaptToHSK: level, into: document)
+                document.status = .ready
+                document.importProgress = 1
+                try? modelContext.save()
+                return
+            }
             let book: ParsedBook
             switch source {
             case .article(let address):
@@ -45,6 +53,42 @@ actor DocumentImporter {
             document.importError = error.localizedDescription
         }
         try? modelContext.save()
+    }
+
+    private func importEnglishAudio(_ url: URL, adaptToHSK level: Int?, into document: Document) async throws {
+        let fileName = "\(document.id.uuidString).\(url.pathExtension.isEmpty ? "m4a" : url.pathExtension)"
+        let stored = AudioTranslation.sourceAudioDirectory.appending(path: fileName)
+        try? FileManager.default.removeItem(at: stored)
+        try FileManager.default.copyItem(at: url, to: stored)
+        document.sourceAudioFileName = fileName
+        document.durationSeconds = AudioTranslation.duration(of: stored)
+        document.importProgress = 0.1
+        try modelContext.save()
+
+        let transcript = try await AudioTranslation.transcribe(stored)
+        guard !transcript.isEmpty else { throw AudioTranslationError.nothingHeard }
+        document.importProgress = 0.4
+        try modelContext.save()
+
+        let lines = try await AudioTranslation.translate(transcript, adaptToHSK: level)
+        let chapter = Chapter(index: 0, title: document.title, firstSentenceOffset: 0)
+        modelContext.insert(chapter)
+        chapter.document = document
+        var uniqueWords = Set<String>()
+        for (index, line) in lines.enumerated() {
+            let text = line.chinese.trimmingCharacters(in: .whitespacesAndNewlines)
+            let tokens = segmenter.tokens(in: text)
+            tokens.filter(\.isLexical).forEach { uniqueWords.insert($0.text(in: text)) }
+            let sentence = Sentence(index: index, paragraphIndex: index, text: text, tokens: tokens)
+            sentence.englishText = line.english
+            sentence.sourceAudioStart = line.start
+            sentence.sourceAudioEnd = line.end
+            modelContext.insert(sentence)
+            sentence.chapter = chapter
+        }
+        document.totalSentences = lines.count
+        document.totalCharacters = lines.reduce(0) { $0 + $1.chinese.count }
+        document.uniqueWords = uniqueWords.sorted()
     }
 
     func sentenceTexts(of documentID: PersistentIdentifier) -> [[String]] {
@@ -103,7 +147,7 @@ actor DocumentImporter {
             return book
         case .pdf(let url):
             return try PDFImporter.parse(url: url)
-        case .article:
+        case .article, .englishAudio:
             throw ArticleExtractor.ArticleError.noContent
         }
     }
@@ -187,6 +231,12 @@ actor DocumentImporter {
         guard CGImageDestinationFinalize(destination) else { return nil }
         return output as Data
     }
+}
+
+enum AudioTranslationError: LocalizedError {
+    case nothingHeard
+
+    var errorDescription: String? { "No English speech was found in that recording." }
 }
 
 /// Main-actor entry point: creates the Library row immediately, then imports in the background.

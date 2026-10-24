@@ -164,19 +164,30 @@ struct TappableSentence: View {
     let text: String
     let highlighted: String?
     let fontSize: CGFloat
+    var showsFamiliarity = false
     let onTap: (String) -> Void
+    @Environment(WordStateStore.self) private var wordStates
 
     var body: some View {
         let spans = Segmenter().tokens(in: text)
         FlowLayout(lineSpacing: fontSize * 0.5) {
             ForEach(Array(spans.enumerated()), id: \.offset) { _, span in
                 let word = span.text(in: text)
+                let familiarity = showsFamiliarity && span.isLexical ? wordStates.familiarity(of: word) : .known
                 Text(word)
                     .font(.chineseSerif(fontSize))
-                    .foregroundStyle(Color.readerText)
+                    .foregroundStyle(familiarity.isLearning ? Color.learningText : Color.readerText)
+                    .background {
+                        if familiarity.isLearning { RoundedRectangle(cornerRadius: 3).fill(Color.learning) }
+                    }
                     .overlay(alignment: .bottom) {
                         if word == highlighted {
                             Rectangle().fill(Color.ink).frame(height: 1.5).offset(y: 4)
+                        } else if familiarity == .new {
+                            DottedUnderline()
+                                .stroke(Color.newWord, style: StrokeStyle(lineWidth: 1.2, lineCap: .round, dash: [0.1, 3]))
+                                .frame(height: 1.2)
+                                .offset(y: 3)
                         }
                     }
                     .layoutValue(key: FlowLayout.KeepsWithPrevious.self, value: !span.isLexical)

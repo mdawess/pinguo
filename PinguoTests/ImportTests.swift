@@ -65,3 +65,18 @@ struct PDFImporterTests {
         #expect(paragraphs.contains { $0.contains("这里的风景比照片上的好看多了") })
     }
 }
+
+struct AudioTranslationTests {
+    @Test func groupsTimedWordsIntoSentenceLines() {
+        let words = [
+            TimedWord(text: "Good", start: 0, end: 0.3), TimedWord(text: "morning,", start: 0.3, end: 0.7),
+            TimedWord(text: "everyone.", start: 0.7, end: 1.2), TimedWord(text: "Let's", start: 1.5, end: 1.7),
+            TimedWord(text: "start", start: 1.7, end: 2.0),
+        ]
+        let lines = AudioTranslation.lines(from: words)
+        #expect(lines == [
+            TranscriptLine(english: "Good morning, everyone.", start: 0, end: 1.2),
+            TranscriptLine(english: "Let's start", start: 1.5, end: 2.0),
+        ])
+    }
+}

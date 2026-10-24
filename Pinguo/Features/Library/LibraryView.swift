@@ -50,7 +50,11 @@ struct LibraryView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: Document.self) { document in
-                ReaderView(document: document)
+                if document.kind == .translatedAudio {
+                    TranslatedAudioView(document: document)
+                } else {
+                    ReaderView(document: document)
+                }
             }
             .sheet(isPresented: $showsAddSheet) {
                 AddToLibrarySheet()

@@ -51,6 +51,16 @@ struct RootView: View {
     private func importOpenedFile(_ url: URL) {
         guard url.isFileURL, let local = try? ImportCoordinator.copyToTemporaryLocation(url) else { return }
         let extensionName = url.pathExtension.lowercased()
+        if ["m4a", "mp3", "wav", "aiff", "caf"].contains(extensionName) {
+            ImportCoordinator.start(
+                .englishAudio(local, adaptToHSK: settings?.estimatedHSKLevel),
+                title: url.deletingPathExtension().lastPathComponent,
+                kind: .translatedAudio,
+                in: modelContext
+            )
+            selectedTab = .library
+            return
+        }
         let source: ImportSource = switch extensionName {
         case "epub": .epub(local)
         case "pdf": .pdf(local)

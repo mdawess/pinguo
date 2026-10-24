@@ -8,6 +8,7 @@ struct AddToLibrarySheet: View {
     @Environment(AppSettings.self) private var settings
     @State private var showsFileImporter = false
     @State private var showsPasteText = false
+    @State private var showsTranslateAudio = false
     @State private var errorMessage: String?
     @State private var articleAddress = ""
 
@@ -18,6 +19,14 @@ struct AddToLibrarySheet: View {
                 VStack(spacing: 14) {
                     uploadCard
                     articleCard
+                    AddRow(
+                        icon: "mic",
+                        title: "Translate English audio",
+                        subtitle: "Record or upload English. Get it back as Chinese text, read aloud.",
+                        iconTint: Color(light: 0xE6E2F0, dark: 0x2A2733)
+                    ) {
+                        showsTranslateAudio = true
+                    }
                     AddRow(icon: "text.alignleft", title: "Paste text", subtitle: nil) {
                         showsPasteText = true
                     }
@@ -51,6 +60,9 @@ struct AddToLibrarySheet: View {
                     Button { dismiss() } label: { Image(systemName: "xmark") }
                         .accessibilityLabel("Close")
                 }
+            }
+            .navigationDestination(isPresented: $showsTranslateAudio) {
+                TranslateAudioSheet { dismiss() }
             }
             .navigationDestination(isPresented: $showsPasteText) {
                 PasteTextView { title, text in

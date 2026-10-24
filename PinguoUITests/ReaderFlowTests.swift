@@ -116,4 +116,17 @@ final class ReaderFlowTests: XCTestCase {
         sleep(1)
         snapshot(app, "conversation-correction")
     }
+
+    func testEnglishAudioBecomesBilingualDocument() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] == nil, "Needs TEST_RUNNER_ANTHROPIC_API_KEY")
+        let app = launch(importing: "standup.m4a")
+        let row = app.staticTexts["standup"].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        let ready = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Translated from English'")).firstMatch
+        XCTAssertTrue(ready.waitForExistence(timeout: 120))
+        row.tap()
+        XCTAssertTrue(app.buttons["Open in reader"].waitForExistence(timeout: 10))
+        sleep(1)
+        snapshot(app, "translated-audio")
+    }
 }
