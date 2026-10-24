@@ -30,6 +30,7 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
     private var ticker: Timer?
     private var loadGeneration = 0
     private var remoteCommandsConfigured = false
+    var onListened: ((Double) -> Void)?
 
     // MARK: Loading
 
@@ -243,6 +244,7 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
 
     private func tick() {
         guard let audioPlayer, let clip = clips[chunkIndex], chunks.indices.contains(chunkIndex) else { return }
+        if audioPlayer.isPlaying { onListened?(0.1) }
         let time = audioPlayer.currentTime
         let offset = clip.sentenceStarts.lastIndex { $0 <= time + 0.05 } ?? 0
         let sentence = chunks[chunkIndex].sentenceRange.lowerBound + offset

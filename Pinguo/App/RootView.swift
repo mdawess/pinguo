@@ -1,3 +1,5 @@
+import Combine
+import CoreData
 import SwiftData
 import SwiftUI
 
@@ -26,6 +28,11 @@ struct RootView: View {
                 Color.background.ignoresSafeArea()
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .NSPersistentStoreRemoteChange).receive(on: RunLoop.main)) { _ in
+            // Changes synced from other devices: refresh the in-memory word and card indexes.
+            wordStates?.reload()
+            reviews?.refresh()
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { importSharedItems() }
         }
@@ -40,6 +47,14 @@ struct RootView: View {
             self.wordStates = wordStates
             reviews = ReviewStore(context: modelContext, wordStates: wordStates)
             player.speed = settings?.playbackSpeed ?? 1
+            var pendingSeconds = 0.0
+            player.onListened = { [modelContext] seconds in
+                pendingSeconds += seconds
+                guard pendingSeconds >= 10 else { return }
+                DailyActivity.today(in: modelContext).secondsListened += pendingSeconds
+                pendingSeconds = 0
+                try? modelContext.save()
+            }
             #if DEBUG
             importLaunchArgumentFile()
             #endif
@@ -133,9 +148,7 @@ struct RootView: View {
                 SpeakHomeView()
             }
             Tab("Progress", systemImage: "person", value: AppTab.progress) {
-                NavigationStack {
-                    if let settings { SettingsView(settings: settings) }
-                }
+                ProgressHomeView()
             }
         }
         .tabViewStyle(.sidebarAdaptable)

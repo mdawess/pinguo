@@ -129,4 +129,26 @@ final class ReaderFlowTests: XCTestCase {
         sleep(1)
         snapshot(app, "translated-audio")
     }
+
+    /// Visits the main screens for a visual check (run on iPad and in dark mode).
+    func testScreenTour() {
+        let app = launch(importing: "weekend.epub")
+        let book = app.staticTexts["周末的小山"].firstMatch
+        XCTAssertTrue(book.waitForExistence(timeout: 15))
+        book.tap()
+        let word = app.staticTexts["城外"].firstMatch
+        XCTAssertTrue(word.waitForExistence(timeout: 10))
+        word.tap()
+        sleep(1)
+        snapshot(app, "tour-reader")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        sleep(1)
+        snapshot(app, "tour-library")
+        app.buttons["Progress"].firstMatch.tap()
+        sleep(1)
+        snapshot(app, "tour-progress")
+        app.buttons["Review"].firstMatch.tap()
+        sleep(1)
+        snapshot(app, "tour-review")
+    }
 }

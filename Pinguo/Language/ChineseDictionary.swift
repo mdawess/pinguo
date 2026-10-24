@@ -63,6 +63,17 @@ nonisolated final class ChineseDictionary: @unchecked Sendable {
         return words
     }
 
+    /// Every headword at or below an HSK level, for seeding a learner's known words.
+    func words(upToHSK level: Int) -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        var words: [String] = []
+        query("SELECT simplified FROM headword WHERE hsk_level IS NOT NULL AND hsk_level <= ?1", bind: { sqlite3_bind_int($0, 1, Int32(level)) }) { statement in
+            words.append(String(cString: sqlite3_column_text(statement, 0)))
+        }
+        return words
+    }
+
     func contains(_ word: String) -> Bool {
         headwords.contains(word)
     }

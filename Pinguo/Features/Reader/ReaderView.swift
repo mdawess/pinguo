@@ -10,6 +10,9 @@ struct ReaderView: View {
     @State private var showsVoicePicker = false
     @State private var showsContents = false
     @State private var scrolledParagraphID: Int?
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    private var usesSidePanel: Bool { horizontalSizeClass == .regular }
 
     init(document: Document) {
         _model = State(initialValue: ReaderModel(document: document))
@@ -17,6 +20,7 @@ struct ReaderView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+        HStack(spacing: 0) {
         ZStack(alignment: .bottom) {
             ScrollViewReader { proxy in
                 ScrollView {
@@ -62,9 +66,16 @@ struct ReaderView: View {
                 if let paragraphID { model.saveProgress(paragraphID: paragraphID) }
             }
 
-            overlayCard
-                .padding(.horizontal, 12)
-                .padding(.bottom, 12)
+            if !usesSidePanel {
+                overlayCard
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+            }
+        }
+            if usesSidePanel {
+                Rectangle().fill(Color.hairline).frame(width: 1)
+                wordPanel.frame(width: 360)
+            }
         }
             PlayerBar(
                 player: player,
@@ -93,7 +104,17 @@ struct ReaderView: View {
                     .accessibilityLabel("Reading settings")
             }
         }
+        .toolbar {
+            if usesSidePanel {
+                ToolbarItem(placement: .topBarTrailing) {
+                    @Bindable var settings = settings
+                    SegmentedPicker(options: [(PinyinMode.always, "Pinyin"), (.newWordsOnly, "New only"), (.off, "Off")], selection: $settings.pinyinMode, height: 36)
+                        .frame(width: 230)
+                }
+            }
+        }
         .toolbar(.hidden, for: .tabBar)
+        .background { keyboardShortcuts }
         .preferredColorScheme(settings.theme.colorScheme)
         .sheet(isPresented: $showsSettings) {
             ReadingSettingsSheet(settings: settings)
@@ -159,6 +180,97 @@ struct ReaderView: View {
             .frame(maxWidth: 520)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
+    }
+
+    /// iPad: the selected word and the New words around the reading position, beside the text.
+    private var wordPanel: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                if let selection = model.selection, let sentence = model.sentence(selection.sentenceIndex) {
+                    WordCardView(
+                        word: selection.word,
+                        sentence: sentence.text,
+                        sentenceContext: model.context(around: sentence.id),
+                        onSpeak: speak,
+                        showsChrome: false
+                    ) {
+                        ReviewToggleButton(word: selection.word) { addCard(word: selection.word, sentence: sentence.text) }
+                    }
+                } else if let index = model.sentenceActionsIndex, let sentence = model.sentence(index) {
+                    SentenceCardView(sentence: sentence, context: model.context(around: index)) {
+                        model.sentenceActionsIndex = nil
+                    } actions: {
+                        Button("Play from here") { playFrom(sentence.id) }.buttonStyle(.pill)
+                    }
+                } else {
+                    Text("Tap a word to look it up.").font(.body15).foregroundStyle(Color.inkSecondary)
+                }
+                Hairline()
+                newOnThisPage
+            }
+            .padding(28)
+        }
+        .background(Color.background)
+    }
+
+    private var pageNewWords: [(word: String, sentence: ReaderSentence)] {
+        let anchor = scrolledParagraphID ?? model.paragraphs.first?.id ?? 0
+        var seen = Set<String>()
+        return model.paragraphs
+            .filter { $0.id >= anchor && $0.id < anchor + 6 }
+            .flatMap(\.sentences)
+            .flatMap { sentence in sentence.lexicalWords.map { (word: $0, sentence: sentence) } }
+            .filter { wordStates.familiarity(of: $0.word) == .new && ChineseDictionary.shared.lookup($0.word) != nil && seen.insert($0.word).inserted }
+    }
+
+    private var newOnThisPage: some View {
+        let words = pageNewWords
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("New on this page").font(.meta13).foregroundStyle(Color.inkSecondary)
+            if words.isEmpty {
+                Text("No new words here.").font(.body15).foregroundStyle(Color.inkSecondary)
+            }
+            ForEach(words.prefix(12), id: \.word) { item in
+                Button {
+                    if let token = item.sentence.tokens.first(where: { $0.text == item.word }) { select(item.sentence, token) }
+                } label: {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(item.word).font(.chineseSerif(19)).foregroundStyle(Color.ink)
+                        Spacer()
+                        Text(ChineseDictionary.shared.lookup(item.word)?.shortGloss ?? "").font(.meta13).foregroundStyle(Color.inkSecondary).lineLimit(1)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            if !words.isEmpty {
+                Button("Add all to review") {
+                    for item in words { addCard(word: item.word, sentence: item.sentence.text) }
+                }
+                .buttonStyle(PillButtonStyle(kind: .secondary, height: 44))
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    /// Hardware keyboard: space play/pause, ←/→ previous/next sentence, 1–5 familiarity of the selected word.
+    private var keyboardShortcuts: some View {
+        Group {
+            Button("Play or pause") {
+                player.isLoaded(model.document, chapter: model.chapterIndex) ? player.togglePlayPause() : playFrom(firstVisibleSentence)
+            }
+            .keyboardShortcut(.space, modifiers: [])
+            Button("Previous sentence") { player.skipSentence(by: -1) }.keyboardShortcut(.leftArrow, modifiers: [])
+            Button("Next sentence") { player.skipSentence(by: 1) }.keyboardShortcut(.rightArrow, modifiers: [])
+            ForEach(Familiarity.allCases, id: \.self) { level in
+                Button("Mark \(level.label)") {
+                    if let word = model.selection?.word { wordStates.setFamiliarity(level, for: word) }
+                }
+                .keyboardShortcut(KeyEquivalent(Character("\(level.rawValue + 1)")), modifiers: [])
+            }
+        }
+        .opacity(0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder private var chapterFooter: some View {

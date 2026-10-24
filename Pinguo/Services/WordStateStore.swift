@@ -50,6 +50,7 @@ final class WordStateStore {
     }
 
     func recordLookup(of word: String) {
+        DailyActivity.today(in: context).wordsLookedUp += 1
         let row = row(for: word)
         row.lookupCount += 1
         row.updatedAt = .now
@@ -81,6 +82,7 @@ final class WordStateStore {
     }
 
     private func save() {
+        DailyActivity.today(in: context).knownWordCount = knownWordCount
         try? context.save()
     }
 }

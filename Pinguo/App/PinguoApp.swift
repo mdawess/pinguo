@@ -29,12 +29,23 @@ enum PinguoStore {
         ReviewLog.self,
         Conversation.self,
         Message.self,
+        DailyActivity.self,
     ])
 
+    static let cloudContainer = "iCloud.com.mdawes.pinguo"
+
+    /// Library, word states, cards and logs sync through the private CloudKit database; the audio cache stays
+    /// on disk outside the store. Falls back to a local store when CloudKit isn't available.
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
+        if inMemory {
+            return try! ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, isStoredInMemoryOnly: true, cloudKitDatabase: .none))
+        }
+        let synced = ModelConfiguration(schema: schema, cloudKitDatabase: .private(cloudContainer))
+        if let container = try? ModelContainer(for: schema, configurations: synced) {
+            return container
+        }
         do {
-            return try ModelContainer(for: schema, configurations: configuration)
+            return try ModelContainer(for: schema, configurations: ModelConfiguration(schema: schema, cloudKitDatabase: .none))
         } catch {
             fatalError("Could not open the Pinguo store: \(error)")
         }

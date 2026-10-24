@@ -6,6 +6,7 @@ struct WordCardView<PrimaryAction: View>: View {
     let sentence: String?
     let sentenceContext: String
     var onSpeak: (String) -> Void = { SpeechFallback.shared.speak($0) }
+    var showsChrome = true
     @ViewBuilder var primaryAction: PrimaryAction
 
     @Environment(WordStateStore.self) private var wordStates
@@ -77,10 +78,14 @@ struct WordCardView<PrimaryAction: View>: View {
                 }
             }
         }
-        .padding(20)
-        .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.background))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.hairline))
-        .shadow(color: .black.opacity(0.08), radius: 24, y: 8)
+        .padding(showsChrome ? 20 : 0)
+        .background {
+            if showsChrome { RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.background) }
+        }
+        .overlay {
+            if showsChrome { RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.hairline) }
+        }
+        .shadow(color: .black.opacity(showsChrome ? 0.08 : 0), radius: 24, y: 8)
         .onChange(of: word) {
             translation = nil
             translationError = nil
