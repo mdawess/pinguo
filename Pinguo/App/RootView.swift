@@ -10,6 +10,7 @@ struct RootView: View {
     @State private var selectedTab: AppTab = .library
     @State private var wordStates: WordStateStore?
     @State private var settings: AppSettings?
+    @State private var player = NarrationPlayer()
 
     var body: some View {
         Group {
@@ -17,10 +18,12 @@ struct RootView: View {
                 tabs
                     .environment(wordStates)
                     .environment(settings)
+                    .environment(player)
             } else {
                 Color.background.ignoresSafeArea()
             }
         }
+        .onChange(of: player.speed) { _, speed in settings?.playbackSpeed = speed }
         .onOpenURL { url in
             importOpenedFile(url)
         }
@@ -28,6 +31,7 @@ struct RootView: View {
             guard wordStates == nil else { return }
             settings = AppSettings.current(in: modelContext)
             wordStates = WordStateStore(context: modelContext)
+            player.speed = settings?.playbackSpeed ?? 1
             #if DEBUG
             importLaunchArgumentFile()
             #endif
@@ -43,6 +47,7 @@ struct RootView: View {
             title: url.deletingPathExtension().lastPathComponent,
             kind: .epub,
             makesCardsFromTaps: settings?.makeCardsFromTapsByDefault ?? true,
+            pregeneratingAudioWith: settings.flatMap { $0.pregenerateAudioByDefault ? ($0.resolvedVoiceID, $0.voiceModelID) : nil },
             in: modelContext
         )
         selectedTab = .library

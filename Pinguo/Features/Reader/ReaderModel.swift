@@ -68,7 +68,6 @@ final class ReaderModel {
         guard chapters.indices.contains(index) else { return }
         chapterIndex = index
         selection = nil
-        spokenSentenceIndex = nil
         let chapterSentences = chapters[index].orderedSentences
         sentences = chapterSentences.map { sentence in
             let characters = Array(sentence.text)
@@ -129,6 +128,12 @@ final class ReaderModel {
         document.lastChapterIndex = chapterIndex
         document.lastSentenceIndex = sentenceIndex
         document.sentencesRead = max(0, min(document.totalSentences, chapter.firstSentenceOffset + sentenceIndex + 1))
+    }
+
+    /// Reaching the end of a chapter counts it as read without moving the bookmark.
+    func markChapterFinished() {
+        guard let chapter else { return }
+        document.sentencesRead = max(document.sentencesRead, min(document.totalSentences, chapter.firstSentenceOffset + sentences.count))
     }
 
     func saveProgress(paragraphID: Int) {

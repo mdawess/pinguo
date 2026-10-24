@@ -36,6 +36,11 @@ actor DocumentImporter {
         try? modelContext.save()
     }
 
+    func sentenceTexts(of documentID: PersistentIdentifier) -> [[String]] {
+        guard let document = modelContext.model(for: documentID) as? Document, document.status == .ready else { return [] }
+        return document.orderedChapters.map { $0.orderedSentences.map(\.text) }
+    }
+
     private func store(_ book: ParsedBook, in document: Document) throws {
         let totalCharacters = book.chapters.reduce(0) { $0 + $1.text.count }
         var processedCharacters = 0
@@ -178,6 +183,7 @@ enum ImportCoordinator {
         kind: DocumentKind,
         sourceURL: String? = nil,
         makesCardsFromTaps: Bool = true,
+        pregeneratingAudioWith voice: (voiceID: String, modelID: String)? = nil,
         in context: ModelContext,
         configure: (Document) -> Void = { _ in }
     ) -> Document {
@@ -191,6 +197,9 @@ enum ImportCoordinator {
         Task.detached(priority: .userInitiated) {
             let importer = DocumentImporter(modelContainer: container)
             await importer.run(source, into: documentID)
+            if let voice {
+                await AudioPregenerator.run(chapters: importer.sentenceTexts(of: documentID), voiceID: voice.voiceID, modelID: voice.modelID)
+            }
         }
         return document
     }

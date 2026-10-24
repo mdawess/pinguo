@@ -57,6 +57,7 @@ struct AddToLibrarySheet: View {
                         title: title.isEmpty ? DocumentImporter.defaultTitle(for: text) : title,
                         kind: .text,
                         makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
+                        pregeneratingAudioWith: pregenerationVoice,
                         in: modelContext
                     )
                     dismiss()
@@ -95,6 +96,10 @@ struct AddToLibrarySheet: View {
         .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color.surface))
     }
 
+    private var pregenerationVoice: (voiceID: String, modelID: String)? {
+        settings.pregenerateAudioByDefault ? (settings.resolvedVoiceID, settings.voiceModelID) : nil
+    }
+
     private func handlePickedFile(_ result: Result<URL, Error>) {
         do {
             let picked = try result.get()
@@ -110,7 +115,14 @@ struct AddToLibrarySheet: View {
                 source = .textFile(local)
                 kind = .epub
             }
-            ImportCoordinator.start(source, title: title, kind: kind, makesCardsFromTaps: settings.makeCardsFromTapsByDefault, in: modelContext)
+            ImportCoordinator.start(
+                source,
+                title: title,
+                kind: kind,
+                makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
+                pregeneratingAudioWith: pregenerationVoice,
+                in: modelContext
+            )
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

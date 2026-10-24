@@ -8,6 +8,9 @@ final class ReaderFlowTests: XCTestCase {
     private func launch(importing fixture: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += ["-PinguoInMemoryStore"]
+        for name in ["ELEVENLABS_API_KEY", "ANTHROPIC_API_KEY"] {
+            if let value = ProcessInfo.processInfo.environment[name] { app.launchEnvironment[name] = value }
+        }
         if let fixture {
             app.launchArguments += ["-PinguoImport", stagedFixture(fixture).path]
         }
@@ -49,5 +52,23 @@ final class ReaderFlowTests: XCTestCase {
         app.buttons["Reading settings"].tap()
         app.buttons["Always"].tap()
         snapshot(app, "settings")
+    }
+
+    func testNarrationHighlightsSentences() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["ELEVENLABS_API_KEY"] == nil, "Needs TEST_RUNNER_ELEVENLABS_API_KEY")
+        let app = launch(importing: "weekend.epub")
+        let book = app.staticTexts["周末的小山"].firstMatch
+        XCTAssertTrue(book.waitForExistence(timeout: 15))
+        book.tap()
+
+        app.buttons["Play"].tap()
+        XCTAssertTrue(app.buttons["Pause"].waitForExistence(timeout: 20))
+        sleep(4)
+        snapshot(app, "playing")
+
+        app.buttons["Choose a voice"].tap()
+        XCTAssertTrue(app.staticTexts["Design your own voice"].waitForExistence(timeout: 10))
+        sleep(2)
+        snapshot(app, "voice-picker")
     }
 }

@@ -54,3 +54,27 @@ struct DictionaryTests {
         #expect(breakdown[0].gloss == "wind")
     }
 }
+
+struct NarrationPlanningTests {
+    @Test func groupsSentencesIntoChunksOfAFewSentences() {
+        let sentences = Array(repeating: "我们一边走一边聊天。", count: 10)
+        let chunks = NarrationPlanner.chunks(for: sentences, targetCharacters: 35, maxSentences: 4)
+        #expect(chunks.map(\.sentenceRange) == [0..<3, 3..<6, 6..<9, 9..<10])
+        #expect(chunks.flatMap { Array($0.sentenceRange) } == Array(0..<10))
+    }
+
+    @Test func keepsAnOverlongSentenceInItsOwnChunk() {
+        let long = String(repeating: "长", count: 300)
+        let chunks = NarrationPlanner.chunks(for: ["短。", long, "短。"], targetCharacters: 160)
+        #expect(chunks.map(\.sentenceRange) == [0..<1, 1..<2, 2..<3])
+    }
+
+    @Test func mapsSentenceStartsOntoCharacterTimings() {
+        let alignment = CharacterAlignment(
+            characters: ["你", "好", "。", "再", "见", "。"],
+            starts: [0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            ends: [0.2, 0.4, 0.6, 0.8, 1.0, 1.2]
+        )
+        #expect(AudioCache.sentenceStarts(sentences: ["你好。", "再见。"], alignment: alignment) == [0, 0.6])
+    }
+}

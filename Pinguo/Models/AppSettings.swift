@@ -32,6 +32,7 @@ final class AppSettings {
     var dailyReviews: Int = 200
     var voiceID: String?
     var voiceName: String?
+    var voiceModelID: String = "eleven_multilingual_v2"
     var playbackSpeed: Double = 1.0
     var makeCardsFromTapsByDefault: Bool = true
     var pregenerateAudioByDefault: Bool = false
@@ -52,6 +53,13 @@ final class AppSettings {
     var theme: ReaderTheme {
         get { ReaderTheme(rawValue: themeRaw) ?? .light }
         set { themeRaw = newValue.rawValue }
+    }
+
+    var resolvedVoiceID: String { voiceID ?? ElevenLabsClient.defaultVoiceID }
+    var resolvedVoiceName: String { voiceName ?? ElevenLabsClient.defaultVoiceName }
+
+    func voiceID(for document: Document?) -> String {
+        document?.voiceOverrideID ?? resolvedVoiceID
     }
 
     static func current(in context: ModelContext) -> AppSettings {
