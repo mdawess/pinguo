@@ -5,6 +5,7 @@ struct LibraryView: View {
     @Query(sort: \Document.importedAt, order: .reverse) private var documents: [Document]
     @Environment(\.modelContext) private var modelContext
     @Environment(WordStateStore.self) private var wordStates
+    @Environment(ReviewStore.self) private var reviews
     @State private var path = NavigationPath()
     @State private var showsAddSheet = false
     @State private var searchText = ""
@@ -87,7 +88,8 @@ struct LibraryView: View {
     }
 
     var summaryLine: String {
-        "\(wordStates.knownWordCount.formatted()) words known"
+        let known = "\(wordStates.knownWordCount.formatted()) words known"
+        return reviews.dueCount > 0 ? "\(reviews.dueCount) cards due · \(known)" : known
     }
 
     private var readyDocuments: [Document] { documents.filter { $0.status == .ready } }

@@ -5,6 +5,7 @@ struct ReaderView: View {
     @Environment(WordStateStore.self) private var wordStates
     @Environment(AppSettings.self) private var settings
     @Environment(NarrationPlayer.self) private var player
+    @Environment(ReviewStore.self) private var reviews
     @State private var showsSettings = false
     @State private var showsVoicePicker = false
     @State private var showsContents = false
@@ -122,11 +123,9 @@ struct ReaderView: View {
                 sentenceContext: model.context(around: sentence.id),
                 onSpeak: speak
             ) {
-                Button("Mark as known") {
-                    wordStates.setFamiliarity(.known, for: selection.word)
-                    model.selection = nil
+                ReviewToggleButton(word: selection.word) {
+                    addCard(word: selection.word, sentence: sentence.text)
                 }
-                .buttonStyle(.pill)
             }
             .frame(maxWidth: 520)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -141,6 +140,21 @@ struct ReaderView: View {
                 .buttonStyle(.pill)
                 Button("Replay") { speak(sentence.text) }
                     .buttonStyle(.pillSecondary)
+                Button {
+                    reviews.addSentenceCard(
+                        sentence: sentence.text,
+                        document: model.document,
+                        chapterTitle: model.chapter?.title,
+                        voiceID: settings.voiceID(for: model.document),
+                        modelID: settings.voiceModelID
+                    )
+                    model.sentenceActionsIndex = nil
+                } label: {
+                    Image(systemName: "rectangle.stack.badge.plus").font(.system(size: 17, weight: .light)).frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .overlay(Circle().strokeBorder(Color.hairline))
+                .accessibilityLabel("Add sentence card")
             }
             .frame(maxWidth: 520)
             .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -177,8 +191,11 @@ struct ReaderView: View {
     private func select(_ sentence: ReaderSentence, _ token: ReaderToken) {
         model.sentenceActionsIndex = nil
         model.select(sentenceIndex: sentence.id, token: token)
-        if let selection = model.selection {
+        if let selection = model.selection, let sentence = model.sentence(selection.sentenceIndex) {
             wordStates.recordLookup(of: selection.word)
+            if model.document.makesCardsFromTaps, wordStates.familiarity(of: selection.word) != .known {
+                addCard(word: selection.word, sentence: sentence.text)
+            }
         }
     }
 
@@ -219,6 +236,17 @@ struct ReaderView: View {
         withAnimation(.easeInOut(duration: 0.4)) {
             proxy.scrollTo(sentence.paragraphIndex, anchor: UnitPoint(x: 0.5, y: 0.2))
         }
+    }
+
+    private func addCard(word: String, sentence: String) {
+        reviews.addWordCard(
+            word: word,
+            sentence: sentence,
+            document: model.document,
+            chapterTitle: model.chapter?.title,
+            voiceID: settings.voiceID(for: model.document),
+            modelID: settings.voiceModelID
+        )
     }
 
     private func dismissOverlays() {

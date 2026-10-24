@@ -11,12 +11,14 @@ struct RootView: View {
     @State private var wordStates: WordStateStore?
     @State private var settings: AppSettings?
     @State private var player = NarrationPlayer()
+    @State private var reviews: ReviewStore?
 
     var body: some View {
         Group {
-            if let wordStates, let settings {
+            if let wordStates, let settings, let reviews {
                 tabs
                     .environment(wordStates)
+                    .environment(reviews)
                     .environment(settings)
                     .environment(player)
             } else {
@@ -30,7 +32,9 @@ struct RootView: View {
         .task {
             guard wordStates == nil else { return }
             settings = AppSettings.current(in: modelContext)
-            wordStates = WordStateStore(context: modelContext)
+            let wordStates = WordStateStore(context: modelContext)
+            self.wordStates = wordStates
+            reviews = ReviewStore(context: modelContext, wordStates: wordStates)
             player.speed = settings?.playbackSpeed ?? 1
             #if DEBUG
             importLaunchArgumentFile()
@@ -68,8 +72,9 @@ struct RootView: View {
                 LibraryView()
             }
             Tab("Review", systemImage: "rectangle.on.rectangle", value: AppTab.review) {
-                PlaceholderScreen(title: "Review")
+                ReviewHomeView()
             }
+            .badge(reviews?.dueCount ?? 0)
             Tab("Speak", systemImage: "bubble", value: AppTab.speak) {
                 PlaceholderScreen(title: "Speak")
             }
@@ -80,6 +85,13 @@ struct RootView: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
+        .task {
+            // Learning steps fall due within minutes, so keep the badge current.
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                reviews?.refresh()
+            }
+        }
     }
 }
 

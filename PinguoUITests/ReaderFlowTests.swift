@@ -71,4 +71,32 @@ final class ReaderFlowTests: XCTestCase {
         sleep(2)
         snapshot(app, "voice-picker")
     }
+
+    func testLookedUpWordBecomesAReviewCard() {
+        let app = launch(importing: "weekend.epub")
+        let book = app.staticTexts["周末的小山"].firstMatch
+        XCTAssertTrue(book.waitForExistence(timeout: 15))
+        book.tap()
+        let word = app.staticTexts["风景"].firstMatch
+        XCTAssertTrue(word.waitForExistence(timeout: 10))
+        word.tap()
+        XCTAssertTrue(app.staticTexts["In review"].waitForExistence(timeout: 5))
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.tabBars.buttons["Review"].tap()
+        let start = app.buttons["Start review"]
+        XCTAssertTrue(start.waitForExistence(timeout: 5))
+        snapshot(app, "review-home")
+        start.tap()
+
+        XCTAssertTrue(app.buttons["Show answer"].waitForExistence(timeout: 5))
+        snapshot(app, "review-front")
+        app.buttons["Show answer"].tap()
+        XCTAssertTrue(app.staticTexts["fēngjǐng"].waitForExistence(timeout: 5))
+        sleep(3)
+        snapshot(app, "review-back")
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Good'")).firstMatch.tap()
+        // Good on a new card schedules a 10 minute learning step, which the session pulls forward.
+        XCTAssertTrue(app.staticTexts["1 / 2"].waitForExistence(timeout: 5))
+    }
 }

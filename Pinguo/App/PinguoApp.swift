@@ -5,6 +5,10 @@ import SwiftUI
 struct PinguoApp: App {
     let modelContainer = PinguoStore.makeContainer(inMemory: ProcessInfo.processInfo.arguments.contains("-PinguoInMemoryStore"))
 
+    init() {
+        UITabBarItem.appearance().badgeColor = UIColor(named: "Badge")
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -21,6 +25,8 @@ enum PinguoStore {
         Sentence.self,
         WordState.self,
         AppSettings.self,
+        Card.self,
+        ReviewLog.self,
     ])
 
     static func makeContainer(inMemory: Bool = false) -> ModelContainer {

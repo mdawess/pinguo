@@ -47,6 +47,11 @@ struct SettingsView: View {
                 Stepper("Estimated level: HSK \(settings.estimatedHSKLevel)", value: $settings.estimatedHSKLevel, in: 1...6)
             }
 
+            Section("Review") {
+                Stepper("New cards per day: \(settings.dailyNewCards)", value: $settings.dailyNewCards, in: 0...200, step: 5)
+                Stepper("Max reviews per day: \(settings.dailyReviews)", value: $settings.dailyReviews, in: 10...1000, step: 10)
+            }
+
             Section("About") {
                 Text("Dictionary: CC-CEDICT (CC BY-SA 4.0). HSK levels from complete-hsk-vocabulary.")
                     .font(.meta13)

@@ -117,3 +117,25 @@ struct WordCardView<PrimaryAction: View>: View {
         }
     }
 }
+
+/// "Add to review" on the word card; once added it shows the word is in the deck.
+struct ReviewToggleButton: View {
+    let word: String
+    let onAdd: () -> Void
+    @Environment(ReviewStore.self) private var reviews
+
+    var body: some View {
+        if reviews.hasCard(for: word) {
+            Label("In review", systemImage: "checkmark")
+                .font(.geist(16, .medium))
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .foregroundStyle(Color.inkSecondary)
+                .background(Capsule().fill(Color.surface))
+        } else {
+            Button(action: onAdd) {
+                Text("Add to review").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.pill)
+        }
+    }
+}
