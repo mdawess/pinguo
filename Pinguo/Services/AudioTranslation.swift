@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import FoundationModels
 @preconcurrency import Speech
 
 nonisolated struct TimedWord: Sendable {
@@ -24,13 +25,7 @@ nonisolated struct TranslatedLine: Sendable {
 /// English speech → timed transcript lines → natural Mandarin, line by line.
 nonisolated enum AudioTranslation {
     static func transcribe(_ url: URL) async throws -> [TranscriptLine] {
-        var words = (try? await onDeviceWords(url)) ?? []
-        if words.isEmpty {
-            words = try await ElevenLabsClient().transcribe(fileURL: url, languageCode: "eng").words.map {
-                TimedWord(text: $0.text, start: $0.start, end: $0.end)
-            }
-        }
-        return lines(from: words)
+        lines(from: try await onDeviceWords(url))
     }
 
     /// Groups words into sentence lines, breaking after . ? ! or when a line runs long.
@@ -55,7 +50,9 @@ nonisolated enum AudioTranslation {
     }
 
     private static func onDeviceWords(_ url: URL) async throws -> [TimedWord] {
-        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US")), recognizer.isAvailable else { return [] }
+        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US")), recognizer.isAvailable else {
+            throw AudioTranslationError.recognizerUnavailable
+        }
         let request = SFSpeechURLRecognitionRequest(url: url)
         request.addsPunctuation = true
         request.shouldReportPartialResults = false
@@ -77,53 +74,37 @@ nonisolated enum AudioTranslation {
         return zip(texts, segments).map { TimedWord(text: $0, start: $1.timestamp, end: $1.timestamp + $1.duration) }
     }
 
-    static let translationSchema: [String: Any] = [
-        "type": "object",
-        "properties": [
-            "lines": [
-                "type": "array",
-                "items": [
-                    "type": "object",
-                    "properties": ["index": ["type": "integer"], "chinese": ["type": "string"]],
-                    "required": ["index", "chinese"],
-                    "additionalProperties": false,
-                ],
-            ],
-        ],
-        "required": ["lines"],
-        "additionalProperties": false,
-    ]
-
-    private struct TranslationBatch: Decodable {
-        struct Line: Decodable {
-            let index: Int
-            let chinese: String
-        }
-
-        let lines: [Line]
+    @Generable
+    struct AdaptedBatch {
+        @Guide(description: "One Simplified Chinese line per numbered English line, in the same order, without numbers.")
+        var lines: [String]
     }
 
+    /// Apple Translation gives natural Mandarin; when adapting to a level, the on-device model rewrites it
+    /// in simpler words (falling back to the plain translation if Apple Intelligence is unavailable).
     static func translate(_ lines: [TranscriptLine], adaptToHSK level: Int?) async throws -> [TranslatedLine] {
-        let client = ClaudeClient()
-        var result: [TranslatedLine] = []
-        let levelInstruction = level.map { "Adapt the Chinese for a learner at HSK \($0): prefer common words and simple structures while keeping the meaning." }
-            ?? "Use natural, idiomatic Mandarin a native speaker would say."
-        let system = """
-            You translate an English spoken transcript into Simplified Chinese, line by line, for a Mandarin learner.
-            \(levelInstruction)
-            Keep one Chinese line per English line with the same index; use context from neighbouring lines. Spoken register, Chinese punctuation.
-            """
-        for start in stride(from: 0, to: lines.count, by: 40) {
-            let batch = Array(lines[start..<min(lines.count, start + 40)])
-            let numbered = batch.enumerated().map { "\(start + $0.offset): \($0.element.english)" }.joined(separator: "\n")
-            let response = try await client.json(TranslationBatch.self, system: system, messages: [.user(numbered)], schema: translationSchema, effort: .low, maxTokens: 16000)
-            let byIndex = Dictionary(response.lines.map { ($0.index, $0.chinese) }, uniquingKeysWith: { first, _ in first })
-            for (offset, line) in batch.enumerated() {
-                let chinese = byIndex[start + offset] ?? ""
-                result.append(TranslatedLine(chinese: chinese.isEmpty ? line.english : chinese, english: line.english, start: line.start, end: line.end))
+        var chinese = try await AppleTranslator.englishToChinese.translate(lines.map(\.english))
+        if let level, TutorService.unavailableReason == nil {
+            for start in stride(from: 0, to: lines.count, by: 8) {
+                let range = start..<min(lines.count, start + 8)
+                if let adapted = try? await adapt(Array(lines[range]), level: level), adapted.count == range.count {
+                    chinese.replaceSubrange(range, with: adapted)
+                }
             }
         }
-        return result
+        return zip(lines, chinese).map { line, text in
+            TranslatedLine(chinese: text.isEmpty ? line.english : text, english: line.english, start: line.start, end: line.end)
+        }
+    }
+
+    private static func adapt(_ lines: [TranscriptLine], level: Int) async throws -> [String] {
+        let session = LanguageModelSession(instructions: """
+            You translate spoken English into Simplified Chinese for a Mandarin learner at HSK \(level).
+            Prefer common words and simple structures while keeping the meaning. Spoken register, Chinese punctuation.
+            """)
+        let numbered = lines.enumerated().map { "\($0.offset + 1). \($0.element.english)" }.joined(separator: "\n")
+        let batch = try await session.respond(to: "Translate each of these \(lines.count) lines:\n\(numbered)", generating: AdaptedBatch.self).content
+        return batch.lines.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
     }
 
     static func duration(of url: URL) -> Double {

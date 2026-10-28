@@ -41,7 +41,12 @@
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
+		<string>processing</string>
 		<string>remote-notification</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.mdawes.pinguo.prepare</string>
 	</array>
 	<key>UIFileSharingEnabled</key>
 	<true/>

@@ -1,21 +1,16 @@
 import AVFoundation
 
-/// Plays a word or sentence in the chosen voice (cached), falling back to the on-device voice when offline.
+/// Speaks a word or sentence straight away in the chosen on-device voice.
 final class Pronunciation {
     static let shared = Pronunciation()
-    private var player: AVAudioPlayer?
+    private let synthesizer = AVSpeechSynthesizer()
 
-    func speak(_ text: String, voiceID: String, modelID: String) {
-        Task {
-            do {
-                let clip = try await AudioCache.shared.clip(sentences: [text], voiceID: voiceID, modelID: modelID)
-                try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
-                let player = try AVAudioPlayer(contentsOf: clip.fileURL)
-                player.play()
-                self.player = player
-            } catch {
-                SpeechFallback.shared.speak(text)
-            }
-        }
+    func speak(_ text: String, voiceID: String? = nil, rate: Float = SpeechSynthesis.rate) {
+        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .spokenAudio)
+        synthesizer.stopSpeaking(at: .immediate)
+        let utterance = AVSpeechUtterance(string: text)
+        utterance.voice = ChineseVoices.voice(withID: voiceID)
+        utterance.rate = rate
+        synthesizer.speak(utterance)
     }
 }

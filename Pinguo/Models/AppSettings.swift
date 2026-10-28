@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import SwiftData
 
@@ -31,12 +32,11 @@ final class AppSettings {
     var dailyNewCards: Int = 20
     var dailyReviews: Int = 200
     var voiceID: String?
-    var voiceName: String?
-    var voiceModelID: String = "eleven_multilingual_v2"
     var playbackSpeed: Double = 1.0
     var makeCardsFromTapsByDefault: Bool = true
-    var pregenerateAudioByDefault: Bool = false
     var estimatedHSKLevel: Int = 3
+    var prepareWhileCharging: Bool = true
+    var chaptersToPrepare: Int = 3
 
     init() {}
 
@@ -55,11 +55,12 @@ final class AppSettings {
         set { themeRaw = newValue.rawValue }
     }
 
-    var resolvedVoiceID: String { voiceID ?? ElevenLabsClient.defaultVoiceID }
-    var resolvedVoiceName: String { voiceName ?? ElevenLabsClient.defaultVoiceName }
+    /// The chosen on-device voice, or the best installed Mandarin voice if it isn't on this device.
+    var resolvedVoiceID: String? { ChineseVoices.voice(withID: voiceID)?.identifier }
+    var resolvedVoiceName: String { ChineseVoices.voice(withID: voiceID)?.name ?? "Voice" }
 
-    func voiceID(for document: Document?) -> String {
-        document?.voiceOverrideID ?? resolvedVoiceID
+    func voiceID(for document: Document?) -> String? {
+        ChineseVoices.voice(withID: document?.voiceOverrideID ?? voiceID)?.identifier
     }
 
     static func current(in context: ModelContext) -> AppSettings {

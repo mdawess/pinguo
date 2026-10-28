@@ -16,7 +16,6 @@ final class Card {
     var documentTitle: String?
     var chapterTitle: String?
     var audioVoiceID: String?
-    var audioModelID: String?
     var createdAt: Date = Date.now
 
     var stateRaw: Int = CardState.new.rawValue

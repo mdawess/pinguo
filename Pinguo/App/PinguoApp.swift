@@ -7,6 +7,7 @@ struct PinguoApp: App {
 
     init() {
         UITabBarItem.appearance().badgeColor = UIColor(named: "Badge")
+        ChargingPreparation.registerBackgroundTask(container: modelContainer)
     }
 
     var body: some Scene {

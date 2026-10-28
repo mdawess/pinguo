@@ -34,7 +34,23 @@ struct RootView: View {
             reviews?.refresh()
         }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { importSharedItems() }
+            switch phase {
+            case .active:
+                importSharedItems()
+                ChargingPreparation.shared.startIfCharging(in: modelContext)
+            case .background:
+                ChargingPreparation.shared.stop()
+                ChargingPreparation.scheduleBackgroundTask()
+            default:
+                break
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.batteryStateDidChangeNotification)) { _ in
+            if ChargingPreparation.isCharging {
+                ChargingPreparation.shared.startIfCharging(in: modelContext)
+            } else {
+                ChargingPreparation.shared.stop()
+            }
         }
         .onChange(of: player.speed) { _, speed in settings?.playbackSpeed = speed }
         .onOpenURL { url in
@@ -42,7 +58,6 @@ struct RootView: View {
         }
         .task {
             guard wordStates == nil else { return }
-            _ = Connectivity.shared
             settings = AppSettings.current(in: modelContext)
             let wordStates = WordStateStore(context: modelContext)
             self.wordStates = wordStates
@@ -87,7 +102,6 @@ struct RootView: View {
             title: url.deletingPathExtension().lastPathComponent,
             kind: extensionName == "pdf" ? .pdf : .epub,
             makesCardsFromTaps: settings?.makeCardsFromTapsByDefault ?? true,
-            pregeneratingAudioWith: settings.flatMap { $0.pregenerateAudioByDefault ? ($0.resolvedVoiceID, $0.voiceModelID) : nil },
             in: modelContext
         )
         selectedTab = .library

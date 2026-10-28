@@ -86,10 +86,10 @@ struct TranslatedAudioView: View {
         }
         .toolbar(.hidden, for: .tabBar)
         .sheet(item: $lookedUp) { item in
-            WordCardView(word: item.word, sentence: item.sentence, sentenceContext: "", onSpeak: speak) {
+            WordCardView(word: item.word, sentence: item.sentence, onSpeak: speak) {
                 ReviewToggleButton(word: item.word) {
                     reviews.addWordCard(word: item.word, sentence: item.sentence, document: document, chapterTitle: nil,
-                                        voiceID: settings.voiceID(for: document), modelID: settings.voiceModelID)
+                                        voiceID: settings.voiceID(for: document))
                 }
             }
             .padding(12)
@@ -137,7 +137,7 @@ struct TranslatedAudioView: View {
 
     private func play(from index: Int) {
         original.stop()
-        player.play(document, chapter: 0, from: index, voiceID: settings.voiceID(for: document), modelID: settings.voiceModelID)
+        player.play(document, chapter: 0, from: index, voiceID: settings.voiceID(for: document))
     }
 
     /// EN: the original English for the line being spoken (or the bookmarked line).
@@ -149,7 +149,7 @@ struct TranslatedAudioView: View {
     }
 
     private func speak(_ text: String) {
-        Pronunciation.shared.speak(text, voiceID: settings.voiceID(for: document), modelID: settings.voiceModelID)
+        Pronunciation.shared.speak(text, voiceID: settings.voiceID(for: document))
     }
 }
 

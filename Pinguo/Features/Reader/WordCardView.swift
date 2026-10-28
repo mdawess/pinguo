@@ -4,8 +4,7 @@ import SwiftUI
 struct WordCardView<PrimaryAction: View>: View {
     let word: String
     let sentence: String?
-    let sentenceContext: String
-    var onSpeak: (String) -> Void = { SpeechFallback.shared.speak($0) }
+    var onSpeak: (String) -> Void = { Pronunciation.shared.speak($0) }
     var showsChrome = true
     @ViewBuilder var primaryAction: PrimaryAction
 
@@ -113,7 +112,7 @@ struct WordCardView<PrimaryAction: View>: View {
         translationError = nil
         Task {
             do {
-                let result = try await TranslationService.shared.translate(sentence, context: sentenceContext)
+                let result = try await TranslationService.shared.translate(sentence)
                 withAnimation { translation = result }
             } catch {
                 translationError = error.localizedDescription

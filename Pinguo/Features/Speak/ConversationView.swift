@@ -57,10 +57,10 @@ struct ConversationView: View {
             await model?.openIfNeeded(deckWords: reviews.practiceWords(), onTutorMessage: play)
         }
         .sheet(item: $lookedUpWord) { item in
-            WordCardView(word: item.word, sentence: item.sentence, sentenceContext: "", onSpeak: speak) {
+            WordCardView(word: item.word, sentence: item.sentence, onSpeak: speak) {
                 ReviewToggleButton(word: item.word) {
                     reviews.addWordCard(word: item.word, sentence: item.sentence, document: nil, chapterTitle: scenario.title,
-                                        voiceID: settings.resolvedVoiceID, modelID: settings.voiceModelID)
+                                        voiceID: settings.resolvedVoiceID)
                 }
             }
             .padding(12)
@@ -91,11 +91,6 @@ struct ConversationView: View {
                         } else {
                             LearnerBubble(message: message)
                         }
-                    }
-                    if model.lastTurnWasOnDevice, !model.isThinking {
-                        Label("Offline · on-device tutor (Apple Intelligence)", systemImage: "airplane")
-                            .font(.meta12)
-                            .foregroundStyle(Color.inkSecondary)
                     }
                     if model.isThinking {
                         ThinkingDots().padding(.leading, 4).id("thinking")
@@ -241,7 +236,7 @@ struct ConversationView: View {
     }
 
     private func speak(_ text: String) {
-        Pronunciation.shared.speak(text, voiceID: settings.resolvedVoiceID, modelID: settings.voiceModelID)
+        Pronunciation.shared.speak(text, voiceID: settings.resolvedVoiceID)
     }
 }
 
@@ -455,12 +450,12 @@ struct ConversationSummaryView: View {
         for word in words {
             let sentence = tutorLines.first { $0.text.contains(word) }?.text ?? word
             reviews.addWordCard(word: word, sentence: sentence, document: nil, chapterTitle: scenario.title,
-                                voiceID: settings.resolvedVoiceID, modelID: settings.voiceModelID)
+                                voiceID: settings.resolvedVoiceID)
         }
         for correction in model.corrections {
             if let natural = correction.correctionNatural {
                 reviews.addSentenceCard(sentence: natural, document: nil, chapterTitle: scenario.title,
-                                        voiceID: settings.resolvedVoiceID, modelID: settings.voiceModelID)
+                                        voiceID: settings.resolvedVoiceID)
             }
         }
         added = true
