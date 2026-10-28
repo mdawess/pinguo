@@ -98,6 +98,7 @@ struct ReaderView: View {
                 .onTapGesture { showsContents = true }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
+                OfflineDownloadButton(document: model.document)
                 Button { showsContents = true } label: { Image(systemName: "list.bullet") }
                     .accessibilityLabel("Contents")
                 Button { showsSettings = true } label: { Text("Aa").font(.geist(17, .semibold)) }

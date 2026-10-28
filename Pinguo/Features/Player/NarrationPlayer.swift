@@ -34,6 +34,10 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
 
     // MARK: Loading
 
+    var isUsingOnDeviceVoice: Bool {
+        clips[chunkIndex]?.isOnDevice ?? false
+    }
+
     func isPlaying(_ document: Document) -> Bool {
         self.document?.id == document.id && isPlaying
     }

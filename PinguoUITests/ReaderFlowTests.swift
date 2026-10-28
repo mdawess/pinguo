@@ -5,9 +5,9 @@ final class ReaderFlowTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launch(importing fixture: String? = nil) -> XCUIApplication {
+    private func launch(importing fixture: String? = nil, onDeviceOnly: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-PinguoInMemoryStore"]
+        app.launchArguments += ["-PinguoInMemoryStore", "-preferOnDevice", onDeviceOnly ? "YES" : "NO"]
         for name in ["ELEVENLABS_API_KEY", "ANTHROPIC_API_KEY"] {
             if let value = ProcessInfo.processInfo.environment[name] { app.launchEnvironment[name] = value }
         }
@@ -150,5 +150,42 @@ final class ReaderFlowTests: XCTestCase {
         app.buttons["Review"].firstMatch.tap()
         sleep(1)
         snapshot(app, "tour-review")
+    }
+
+    /// Simulates a flight: everything routes to Apple's on-device voice, translation and tutor.
+    func testOnDeviceModeNarratesAndTutorsWithoutCloudServices() {
+        let app = launch(importing: "weekend.epub", onDeviceOnly: true)
+        app.buttons["Progress"].firstMatch.tap()
+        app.buttons["Settings"].firstMatch.tap()
+        let offlineToggle = app.switches["Always use on-device"].firstMatch
+        for _ in 0..<4 where !offlineToggle.isHittable { app.swipeUp() }
+        sleep(2)
+        snapshot(app, "offline-settings")
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["Library"].firstMatch.tap()
+
+        let book = app.staticTexts["周末的小山"].firstMatch
+        XCTAssertTrue(book.waitForExistence(timeout: 15))
+        book.tap()
+
+        app.buttons["Play"].tap()
+        XCTAssertTrue(app.staticTexts["Offline · on-device voice"].waitForExistence(timeout: 20))
+        sleep(2)
+        snapshot(app, "offline-narration")
+        app.buttons["Pause"].tap()
+
+        app.buttons["Download for offline"].tap()
+        sleep(1)
+        snapshot(app, "offline-download-menu")
+        app.tap()
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        app.buttons["Speak"].firstMatch.tap()
+        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Ordering coffee'")).firstMatch.tap()
+        let tutorReplied = app.buttons["Translate"].firstMatch.waitForExistence(timeout: 60)
+        let explainedUnavailable = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"You're offline\"")).firstMatch.exists
+        XCTAssertTrue(tutorReplied || explainedUnavailable)
+        sleep(1)
+        snapshot(app, "offline-tutor")
     }
 }

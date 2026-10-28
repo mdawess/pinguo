@@ -8,7 +8,7 @@ final class SpeechFallback {
     func speak(_ text: String, rate: Float = 0.42) {
         synthesizer.stopSpeaking(at: .immediate)
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "zh-CN")
+        utterance.voice = OnDeviceSpeech.bestVoice
         utterance.rate = rate
         synthesizer.speak(utterance)
     }
