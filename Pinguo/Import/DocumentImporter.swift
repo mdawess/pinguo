@@ -91,11 +91,6 @@ actor DocumentImporter {
         document.uniqueWords = uniqueWords.sorted()
     }
 
-    func sentenceTexts(of documentID: PersistentIdentifier) -> [[String]] {
-        guard let document = modelContext.model(for: documentID) as? Document, document.status == .ready else { return [] }
-        return document.orderedChapters.map { $0.orderedSentences.map(\.text) }
-    }
-
     private func store(_ book: ParsedBook, in document: Document) throws {
         let totalCharacters = book.chapters.reduce(0) { $0 + $1.text.count }
         var processedCharacters = 0
@@ -233,10 +228,15 @@ actor DocumentImporter {
     }
 }
 
-enum AudioTranslationError: LocalizedError {
-    case nothingHeard
+nonisolated enum AudioTranslationError: LocalizedError {
+    case nothingHeard, recognizerUnavailable
 
-    var errorDescription: String? { "No English speech was found in that recording." }
+    var errorDescription: String? {
+        switch self {
+        case .nothingHeard: "No English speech was found in that recording."
+        case .recognizerUnavailable: "English speech recognition isn't available on this device."
+        }
+    }
 }
 
 /// Main-actor entry point: creates the Library row immediately, then imports in the background.
@@ -249,7 +249,6 @@ enum ImportCoordinator {
         kind: DocumentKind,
         sourceURL: String? = nil,
         makesCardsFromTaps: Bool = true,
-        pregeneratingAudioWith voice: (voiceID: String, modelID: String)? = nil,
         in context: ModelContext,
         configure: (Document) -> Void = { _ in }
     ) -> Document {
@@ -263,9 +262,6 @@ enum ImportCoordinator {
         Task.detached(priority: .userInitiated) {
             let importer = DocumentImporter(modelContainer: container)
             await importer.run(source, into: documentID)
-            if let voice {
-                await AudioPregenerator.run(chapters: importer.sentenceTexts(of: documentID), voiceID: voice.voiceID, modelID: voice.modelID)
-            }
         }
         return document
     }

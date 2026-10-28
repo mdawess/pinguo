@@ -3,7 +3,7 @@ import MediaPlayer
 import Observation
 import SwiftData
 
-/// Plays a document chapter by chapter in the chosen ElevenLabs voice, generating audio a few sentences
+/// Plays a document chapter by chapter in the chosen on-device voice, rendering audio a few sentences
 /// ahead of the playhead and reporting which sentence is being spoken.
 @Observable
 final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
@@ -19,8 +19,7 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
         didSet { audioPlayer?.rate = Float(speed) }
     }
 
-    private var voiceID = ElevenLabsClient.defaultVoiceID
-    private var modelID = ElevenLabsClient.defaultModelID
+    private var voiceID: String?
     private var chapterTitle = ""
     private var sentences: [String] = []
     private var chunks: [NarrationChunk] = []
@@ -34,10 +33,6 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
 
     // MARK: Loading
 
-    var isUsingOnDeviceVoice: Bool {
-        clips[chunkIndex]?.isOnDevice ?? false
-    }
-
     func isPlaying(_ document: Document) -> Bool {
         self.document?.id == document.id && isPlaying
     }
@@ -47,11 +42,10 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     /// Prepares a chapter and starts playing at `sentence`.
-    func play(_ document: Document, chapter: Int, from sentence: Int, voiceID: String, modelID: String) {
+    func play(_ document: Document, chapter: Int, from sentence: Int, voiceID: String?) {
         configureSessionIfNeeded()
-        let voiceChanged = voiceID != self.voiceID || modelID != self.modelID
+        let voiceChanged = voiceID != self.voiceID
         self.voiceID = voiceID
-        self.modelID = modelID
         if self.document?.id != document.id || chapterIndex != chapter || sentences.isEmpty || voiceChanged {
             prepare(document, chapter: chapter)
         }
@@ -73,7 +67,7 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
     }
 
     private func cacheKey(for chunk: NarrationChunk) -> String {
-        AudioCache.key(text: sentences[chunk.sentenceRange].joined(), voiceID: voiceID, modelID: modelID)
+        AudioCache.key(text: sentences[chunk.sentenceRange].joined(), voiceID: voiceID ?? "zh-CN")
     }
 
     // MARK: Transport
@@ -186,7 +180,7 @@ final class NarrationPlayer: NSObject, AVAudioPlayerDelegate {
     private func clip(forChunk index: Int) async throws -> NarrationClip {
         if let cached = clips[index] { return cached }
         let chunk = chunks[index]
-        let clip = try await AudioCache.shared.clip(sentences: Array(sentences[chunk.sentenceRange]), voiceID: voiceID, modelID: modelID)
+        let clip = try await AudioCache.shared.clip(sentences: Array(sentences[chunk.sentenceRange]), voiceID: voiceID)
         clips[index] = clip
         recomputeTimeline()
         return clip

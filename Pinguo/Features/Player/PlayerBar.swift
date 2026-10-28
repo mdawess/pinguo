@@ -72,9 +72,6 @@ struct PlayerBar: View {
             }
             .buttonStyle(.plain)
             .foregroundStyle(Color.ink)
-            if isActive, player.isUsingOnDeviceVoice, player.errorMessage == nil {
-                Label("Offline · on-device voice", systemImage: "airplane").font(.meta12).foregroundStyle(Color.inkSecondary)
-            }
             if isActive, let error = player.errorMessage {
                 Text(error).font(.meta12).foregroundStyle(Color.newWord).lineLimit(2).multilineTextAlignment(.center)
             }

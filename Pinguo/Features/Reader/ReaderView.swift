@@ -98,7 +98,6 @@ struct ReaderView: View {
                 .onTapGesture { showsContents = true }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
-                OfflineDownloadButton(document: model.document)
                 Button { showsContents = true } label: { Image(systemName: "list.bullet") }
                     .accessibilityLabel("Contents")
                 Button { showsSettings = true } label: { Text("Aa").font(.geist(17, .semibold)) }
@@ -142,7 +141,6 @@ struct ReaderView: View {
             WordCardView(
                 word: selection.word,
                 sentence: sentence.text,
-                sentenceContext: model.context(around: sentence.id),
                 onSpeak: speak
             ) {
                 ReviewToggleButton(word: selection.word) {
@@ -152,7 +150,7 @@ struct ReaderView: View {
             .frame(maxWidth: 520)
             .transition(.move(edge: .bottom).combined(with: .opacity))
         } else if let index = model.sentenceActionsIndex, let sentence = model.sentence(index) {
-            SentenceCardView(sentence: sentence, context: model.context(around: index)) {
+            SentenceCardView(sentence: sentence) {
                 model.sentenceActionsIndex = nil
             } actions: {
                 Button("Play from here") {
@@ -167,8 +165,7 @@ struct ReaderView: View {
                         sentence: sentence.text,
                         document: model.document,
                         chapterTitle: model.chapter?.title,
-                        voiceID: settings.voiceID(for: model.document),
-                        modelID: settings.voiceModelID
+                        voiceID: settings.voiceID(for: model.document)
                     )
                     model.sentenceActionsIndex = nil
                 } label: {
@@ -191,14 +188,13 @@ struct ReaderView: View {
                     WordCardView(
                         word: selection.word,
                         sentence: sentence.text,
-                        sentenceContext: model.context(around: sentence.id),
                         onSpeak: speak,
                         showsChrome: false
                     ) {
                         ReviewToggleButton(word: selection.word) { addCard(word: selection.word, sentence: sentence.text) }
                     }
                 } else if let index = model.sentenceActionsIndex, let sentence = model.sentence(index) {
-                    SentenceCardView(sentence: sentence, context: model.context(around: index)) {
+                    SentenceCardView(sentence: sentence) {
                         model.sentenceActionsIndex = nil
                     } actions: {
                         Button("Play from here") { playFrom(sentence.id) }.buttonStyle(.pill)
@@ -326,13 +322,12 @@ struct ReaderView: View {
             model.document,
             chapter: model.chapterIndex,
             from: sentenceIndex,
-            voiceID: settings.voiceID(for: model.document),
-            modelID: settings.voiceModelID
+            voiceID: settings.voiceID(for: model.document)
         )
     }
 
     private func speak(_ text: String) {
-        Pronunciation.shared.speak(text, voiceID: settings.voiceID(for: model.document), modelID: settings.voiceModelID)
+        Pronunciation.shared.speak(text, voiceID: settings.voiceID(for: model.document))
     }
 
     /// Keeps the spoken sentence highlighted and in the upper third, following the player across chapters.
@@ -357,8 +352,7 @@ struct ReaderView: View {
             sentence: sentence,
             document: model.document,
             chapterTitle: model.chapter?.title,
-            voiceID: settings.voiceID(for: model.document),
-            modelID: settings.voiceModelID
+            voiceID: settings.voiceID(for: model.document)
         )
     }
 

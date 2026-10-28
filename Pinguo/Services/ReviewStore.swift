@@ -44,10 +44,10 @@ final class ReviewStore {
     // MARK: Creating cards
 
     @discardableResult
-    func addWordCard(word: String, sentence: String, document: Document?, chapterTitle: String?, voiceID: String, modelID: String) -> Card? {
+    func addWordCard(word: String, sentence: String, document: Document?, chapterTitle: String?, voiceID: String?) -> Card? {
         guard !hasCard(for: word) else { return nil }
         let card = Card(kind: .word, word: word, sentenceText: sentence)
-        attach(card, document: document, chapterTitle: chapterTitle, voiceID: voiceID, modelID: modelID)
+        attach(card, document: document, chapterTitle: chapterTitle, voiceID: voiceID)
         cardWords.insert(word)
         if wordStates.familiarity(of: word) == .new {
             wordStates.setFamiliarity(.seen, for: word)
@@ -56,27 +56,22 @@ final class ReviewStore {
     }
 
     @discardableResult
-    func addSentenceCard(sentence: String, document: Document?, chapterTitle: String?, voiceID: String, modelID: String) -> Card {
+    func addSentenceCard(sentence: String, document: Document?, chapterTitle: String?, voiceID: String?) -> Card {
         let card = Card(kind: .sentence, word: sentence, sentenceText: sentence)
-        attach(card, document: document, chapterTitle: chapterTitle, voiceID: voiceID, modelID: modelID)
+        attach(card, document: document, chapterTitle: chapterTitle, voiceID: voiceID)
         return card
     }
 
-    private func attach(_ card: Card, document: Document?, chapterTitle: String?, voiceID: String, modelID: String) {
+    private func attach(_ card: Card, document: Document?, chapterTitle: String?, voiceID: String?) {
         card.documentID = document?.id
         card.documentTitle = document?.title
         card.chapterTitle = chapterTitle
         card.audioVoiceID = voiceID
-        card.audioModelID = modelID
         context.insert(card)
         save()
         let sentence = card.sentenceText
         Task {
-            // Keep the original sentence's translation and audio with the card for offline review.
-            async let translation = try? TranslationService.shared.translate(sentence)
-            async let audio = try? AudioCache.shared.clip(sentences: [sentence], voiceID: voiceID, modelID: modelID)
-            card.sentenceTranslation = await translation
-            _ = await audio
+            card.sentenceTranslation = try? await TranslationService.shared.translate(sentence)
             save()
         }
     }

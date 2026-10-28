@@ -3,12 +3,10 @@ import SwiftUI
 /// Long-press on a sentence: translate it, replay it, or keep it as a card.
 struct SentenceCardView<Actions: View>: View {
     let sentence: ReaderSentence
-    let context: String
     let onClose: () -> Void
     @ViewBuilder var actions: Actions
 
     @State private var translation: String?
-    @State private var isOnDeviceTranslation = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -28,12 +26,7 @@ struct SentenceCardView<Actions: View>: View {
             }
             Group {
                 if let translation = translation ?? sentence.englishText {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(translation).foregroundStyle(Color.inkSecondary)
-                        if isOnDeviceTranslation {
-                            Label("Offline · on-device translation", systemImage: "airplane").font(.meta12).foregroundStyle(Color.inkSecondary)
-                        }
-                    }
+                    Text(translation).foregroundStyle(Color.inkSecondary)
                 } else if let errorMessage {
                     Text(errorMessage).foregroundStyle(Color.newWord)
                 } else {
@@ -56,9 +49,7 @@ struct SentenceCardView<Actions: View>: View {
             translation = nil
             errorMessage = nil
             do {
-                let result = try await TranslationService.shared.translation(of: sentence.text, context: context)
-                translation = result.text
-                isOnDeviceTranslation = result.isOnDevice
+                translation = try await TranslationService.shared.translate(sentence.text)
             } catch {
                 errorMessage = error.localizedDescription
             }

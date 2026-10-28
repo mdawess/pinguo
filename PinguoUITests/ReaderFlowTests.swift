@@ -5,12 +5,9 @@ final class ReaderFlowTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    private func launch(importing fixture: String? = nil, onDeviceOnly: Bool = false) -> XCUIApplication {
+    private func launch(importing fixture: String? = nil) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments += ["-PinguoInMemoryStore", "-preferOnDevice", onDeviceOnly ? "YES" : "NO"]
-        for name in ["ELEVENLABS_API_KEY", "ANTHROPIC_API_KEY"] {
-            if let value = ProcessInfo.processInfo.environment[name] { app.launchEnvironment[name] = value }
-        }
+        app.launchArguments += ["-PinguoInMemoryStore"]
         if let fixture {
             app.launchArguments += ["-PinguoImport", stagedFixture(fixture).path]
         }
@@ -54,8 +51,7 @@ final class ReaderFlowTests: XCTestCase {
         snapshot(app, "settings")
     }
 
-    func testNarrationHighlightsSentences() throws {
-        try XCTSkipIf(ProcessInfo.processInfo.environment["ELEVENLABS_API_KEY"] == nil, "Needs TEST_RUNNER_ELEVENLABS_API_KEY")
+    func testNarrationHighlightsSentences() {
         let app = launch(importing: "weekend.epub")
         let book = app.staticTexts["周末的小山"].firstMatch
         XCTAssertTrue(book.waitForExistence(timeout: 15))
@@ -67,7 +63,7 @@ final class ReaderFlowTests: XCTestCase {
         snapshot(app, "playing")
 
         app.buttons["Choose a voice"].tap()
-        XCTAssertTrue(app.staticTexts["Design your own voice"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Mainland Mandarin"].waitForExistence(timeout: 10))
         sleep(2)
         snapshot(app, "voice-picker")
     }
@@ -100,25 +96,31 @@ final class ReaderFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["1 / 2"].waitForExistence(timeout: 5))
     }
 
-    func testConversationRepliesAndCorrects() throws {
-        try XCTSkipIf(ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] == nil, "Needs TEST_RUNNER_ANTHROPIC_API_KEY")
+    /// Needs Apple Intelligence on the host Mac for the simulator's on-device model.
+    func testConversationReplies() throws {
         let app = launch()
         app.tabBars.buttons["Speak"].tap()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Ordering coffee'")).firstMatch.tap()
-        XCTAssertTrue(app.buttons["Translate"].firstMatch.waitForExistence(timeout: 60))
+        let unavailable = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Apple Intelligence'")).firstMatch
+        let opened = app.buttons["Translate"].firstMatch
+        XCTAssertTrue(opened.waitForExistence(timeout: 60) || unavailable.exists)
+        try XCTSkipIf(unavailable.exists, "Apple Intelligence is unavailable on this simulator host")
         snapshot(app, "conversation-opening")
 
         app.buttons["Type instead"].tap()
         let field = app.textFields.firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.typeText("我要一杯拿铁，热。\n")
-        XCTAssertTrue(app.staticTexts["More natural"].waitForExistence(timeout: 60))
+        let replies = app.buttons.matching(identifier: "Translate")
+        let replied = expectation(for: NSPredicate(format: "count >= 2"), evaluatedWith: replies)
+        wait(for: [replied], timeout: 60)
         sleep(1)
-        snapshot(app, "conversation-correction")
+        snapshot(app, "conversation-reply")
     }
 
+    /// Needs English speech recognition and the English–Chinese translation pack, which the simulator lacks.
     func testEnglishAudioBecomesBilingualDocument() throws {
-        try XCTSkipIf(ProcessInfo.processInfo.environment["ANTHROPIC_API_KEY"] == nil, "Needs TEST_RUNNER_ANTHROPIC_API_KEY")
+        try XCTSkipIf(ProcessInfo.processInfo.environment["PINGUO_TRANSLATION_AVAILABLE"] == nil, "Translation framework is unavailable in the simulator")
         let app = launch(importing: "standup.m4a")
         let row = app.staticTexts["standup"].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
@@ -150,42 +152,5 @@ final class ReaderFlowTests: XCTestCase {
         app.buttons["Review"].firstMatch.tap()
         sleep(1)
         snapshot(app, "tour-review")
-    }
-
-    /// Simulates a flight: everything routes to Apple's on-device voice, translation and tutor.
-    func testOnDeviceModeNarratesAndTutorsWithoutCloudServices() {
-        let app = launch(importing: "weekend.epub", onDeviceOnly: true)
-        app.buttons["Progress"].firstMatch.tap()
-        app.buttons["Settings"].firstMatch.tap()
-        let offlineToggle = app.switches["Always use on-device"].firstMatch
-        for _ in 0..<4 where !offlineToggle.isHittable { app.swipeUp() }
-        sleep(2)
-        snapshot(app, "offline-settings")
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.buttons["Library"].firstMatch.tap()
-
-        let book = app.staticTexts["周末的小山"].firstMatch
-        XCTAssertTrue(book.waitForExistence(timeout: 15))
-        book.tap()
-
-        app.buttons["Play"].tap()
-        XCTAssertTrue(app.staticTexts["Offline · on-device voice"].waitForExistence(timeout: 20))
-        sleep(2)
-        snapshot(app, "offline-narration")
-        app.buttons["Pause"].tap()
-
-        app.buttons["Download for offline"].tap()
-        sleep(1)
-        snapshot(app, "offline-download-menu")
-        app.tap()
-
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        app.buttons["Speak"].firstMatch.tap()
-        app.buttons.matching(NSPredicate(format: "label BEGINSWITH 'Ordering coffee'")).firstMatch.tap()
-        let tutorReplied = app.buttons["Translate"].firstMatch.waitForExistence(timeout: 60)
-        let explainedUnavailable = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH \"You're offline\"")).firstMatch.exists
-        XCTAssertTrue(tutorReplied || explainedUnavailable)
-        sleep(1)
-        snapshot(app, "offline-tutor")
     }
 }

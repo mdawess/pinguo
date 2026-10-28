@@ -1,3 +1,4 @@
+import AVFoundation
 import CryptoKit
 import Foundation
 
@@ -10,7 +11,7 @@ nonisolated struct NarrationClip: Codable, Sendable {
     var fileURL: URL { AudioCache.directory.appending(path: fileName) }
 }
 
-/// Local-only audio cache keyed by (text, voice, model), so re-listening never costs credits.
+/// Narration rendered with an on-device voice and cached by (text, voice), so chapters render once.
 actor AudioCache {
     static let shared = AudioCache()
     nonisolated static let directory: URL = {
@@ -19,70 +20,39 @@ actor AudioCache {
         return url
     }()
 
-    private let client = ElevenLabsClient()
     private var inFlight: [String: Task<NarrationClip, Error>] = [:]
 
-    nonisolated static func key(text: String, voiceID: String, modelID: String) -> String {
-        let digest = SHA256.hash(data: Data("\(modelID)|\(voiceID)|\(text)".utf8))
+    nonisolated static func key(text: String, voiceID: String) -> String {
+        let digest = SHA256.hash(data: Data("\(voiceID)|\(text)".utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }
 
-    func cachedClip(sentences: [String], voiceID: String, modelID: String) -> NarrationClip? {
-        let key = Self.key(text: sentences.joined(), voiceID: voiceID, modelID: modelID)
-        return Self.readManifest(key)
-    }
-
-    /// Returns the clip for these consecutive sentences, synthesising it once if needed. Without a usable
-    /// connection (or an ElevenLabs key) it falls back to the on-device voice, cached separately so the
-    /// ElevenLabs version is still fetched once back online.
-    func clip(sentences: [String], voiceID: String, modelID: String) async throws -> NarrationClip {
-        if let cached = cachedClip(sentences: sentences, voiceID: voiceID, modelID: modelID) { return cached }
-        guard CloudReachability.shouldTryCloud else { return try await OnDeviceSpeech.shared.clip(sentences: sentences) }
-        do {
-            return try await cloudClip(sentences: sentences, voiceID: voiceID, modelID: modelID)
-        } catch let error as ServiceError {
-            guard case .missingKey = error else { throw error }
-            return try await OnDeviceSpeech.shared.clip(sentences: sentences)
-        } catch where CloudReachability.isOffline(error) {
-            return try await OnDeviceSpeech.shared.clip(sentences: sentences)
-        }
-    }
-
-    /// Fetches the ElevenLabs clip without falling back, for downloading audio ahead of a flight.
-    func cloudClip(sentences: [String], voiceID: String, modelID: String) async throws -> NarrationClip {
-        let text = sentences.joined()
-        let key = Self.key(text: text, voiceID: voiceID, modelID: modelID)
+    /// Returns the clip for these consecutive sentences, rendering it once if needed.
+    func clip(sentences: [String], voiceID: String?) async throws -> NarrationClip {
+        let voice = ChineseVoices.voice(withID: voiceID)
+        let key = Self.key(text: sentences.joined(), voiceID: voice?.identifier ?? "zh-CN")
         if let cached = Self.readManifest(key) { return cached }
         if let running = inFlight[key] { return try await running.value }
 
-        let client = client
         let task = Task<NarrationClip, Error> {
-            let (audio, alignment) = try await client.speech(text: text, voiceID: voiceID, modelID: modelID)
-            let fileName = "\(key).mp3"
-            try audio.write(to: Self.directory.appending(path: fileName), options: .atomic)
-            let clip = NarrationClip(
-                fileName: fileName,
-                sentenceStarts: Self.sentenceStarts(sentences: sentences, alignment: alignment),
-                duration: alignment.ends.last ?? 0
+            let (buffers, sentenceStarts) = try await SpeechSynthesis.shared.render(sentences, voice: voice)
+            let format = buffers[0].format
+            let fileName = "\(key).caf"
+            let file = try AVAudioFile(
+                forWriting: Self.directory.appending(path: fileName),
+                settings: [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: format.sampleRate, AVNumberOfChannelsKey: format.channelCount],
+                commonFormat: format.commonFormat,
+                interleaved: format.isInterleaved
             )
+            for buffer in buffers { try file.write(from: buffer) }
+            let frames = buffers.reduce(0) { $0 + Double($1.frameLength) }
+            let clip = NarrationClip(fileName: fileName, sentenceStarts: sentenceStarts, duration: frames / format.sampleRate)
             try JSONEncoder().encode(clip).write(to: Self.directory.appending(path: "\(key).json"), options: .atomic)
             return clip
         }
         inFlight[key] = task
         defer { inFlight[key] = nil }
         return try await task.value
-    }
-
-    /// Maps sentence boundaries onto the character timings returned with the audio.
-    nonisolated static func sentenceStarts(sentences: [String], alignment: CharacterAlignment) -> [Double] {
-        var starts: [Double] = []
-        var characterOffset = 0
-        for sentence in sentences {
-            let index = min(characterOffset, max(0, alignment.starts.count - 1))
-            starts.append(alignment.starts.isEmpty ? 0 : alignment.starts[index])
-            characterOffset += sentence.count
-        }
-        return starts
     }
 
     nonisolated static func readManifest(_ key: String) -> NarrationClip? {

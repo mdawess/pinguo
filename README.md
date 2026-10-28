@@ -1,9 +1,9 @@
 # pinguo
 
 Learning Mandarin by reading and listening to real material. A native SwiftUI app for iPhone and iPad: read EPUBs,
-PDFs, articles and pasted text with tap-to-define and pinyin, listen in a natural ElevenLabs voice with the spoken
-sentence highlighted, review looked-up words with FSRS, practise speaking with a Claude tutor and turn English audio
-into a bilingual Chinese document.
+PDFs, articles and pasted text with tap-to-define and pinyin, listen with the spoken sentence highlighted, review
+looked-up words with FSRS, practise speaking with a tutor and turn English audio into a bilingual Chinese document.
+Everything runs on the device, with no accounts or API keys, and works offline.
 
 ## Building
 
@@ -23,35 +23,30 @@ Select your team under Signing & Capabilities for `Pinguo` and `PinguoShare`. Th
 If you change the bundle identifier, update both identifiers in `Config/*.entitlements`, `Shared/PendingImports.swift`
 and `PinguoStore.cloudContainer`.
 
-### API keys
-
-Keys are stored in the Keychain and never compiled in. Paste them in **Progress → Settings → API keys**:
-
-- ElevenLabs — narration, word audio, voice picker and Scribe speech-to-text fallback. Library (native Mandarin)
-  voices and voice design need a paid ElevenLabs plan; the free plan works with the premade voices.
-- Anthropic — sentence translation, the conversation tutor and English audio translation (`claude-opus-5-5`).
-
-Debug builds also read `ELEVENLABS_API_KEY` / `ANTHROPIC_API_KEY` from the launch environment and copy them into the
-Keychain, e.g. `SIMCTL_CHILD_ELEVENLABS_API_KEY=… xcrun simctl launch booted com.mdawes.pinguo`.
-
 ### Tests
 
 ```sh
 xcodebuild test -project Pinguo.xcodeproj -scheme Pinguo -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
-The UI tests that call ElevenLabs and Claude skip themselves unless the keys are passed to the runner:
-`TEST_RUNNER_ELEVENLABS_API_KEY=… TEST_RUNNER_ANTHROPIC_API_KEY=… xcodebuild test …`.
+The conversation tests need Apple Intelligence on the host Mac and skip themselves without it. The English-audio test
+is skipped in the simulator, which has no Translation framework; set `TEST_RUNNER_PINGUO_TRANSLATION_AVAILABLE=1` to
+run it on a device.
 
-## Offline (on a flight)
+## On-device engines
 
-Without a connection, or with **Settings › Offline › Always use on-device**, Pinguo routes to Apple's on-device engines:
+- **Narration**: an installed Mandarin `AVSpeechSynthesizer` voice, rendered to cached AAC clips with sentence timings,
+  so the spoken sentence is highlighted. Premium or Enhanced voices (Settings › Accessibility › Spoken Content ›
+  Voices › Chinese) sound much better than the built-in compact ones; they appear in the voice picker once downloaded.
+- **Translation**: Apple's Translation framework. Download Chinese–English from **Progress → Settings → On-device**.
+- **Speaking tutor and level-adapted audio translation**: Foundation Models (needs Apple Intelligence). Pinyin comes from
+  the bundled dictionary, and corrections that don't resemble what the learner said are dropped.
+- **Speech recognition**: the Speech framework, on-device.
 
-- **Narration**: the best installed zh-CN `AVSpeechSynthesizer` voice, rendered into the same cached clip format, so sentence highlighting still works. A Premium or Enhanced voice (Settings › Accessibility › Spoken Content › Voices) sounds much better.
-- **Translation**: the Translation framework (download the Chinese–English pack from Settings › Offline).
-- **Tutor**: Foundation Models (needs Apple Intelligence), with pinyin taken from the bundled dictionary.
-
-To keep full quality in the air, use **Download for offline** (reader toolbar or Library long-press) before you leave. It caches Claude translations and ElevenLabs narration for the next three chapters or the whole book. On-device results are cached separately, so the cloud versions replace them once you're back online.
+**Prepare while charging** (on by default) renders narration and translations for the next chapters (3 by default) of
+the three most recently opened books. It runs while the app is open and plugged in, and as a `BGProcessingTask` that
+iOS only starts on external power (usually overnight). After that, reading plays from the cache instead of using
+battery.
 
 ## Bundled data
 

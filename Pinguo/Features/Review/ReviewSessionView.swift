@@ -58,7 +58,7 @@ struct ReviewSessionView: View {
         .background(Color.background)
         .onAppear(perform: advance)
         .sheet(item: Binding(get: { lookedUpWord.map(LookedUpWord.init) }, set: { lookedUpWord = $0?.word })) { item in
-            WordCardView(word: item.word, sentence: current?.sentenceText, sentenceContext: "", onSpeak: { speak($0) }) {
+            WordCardView(word: item.word, sentence: current?.sentenceText, onSpeak: { speak($0) }) {
                 EmptyView()
             }
             .padding(12)
@@ -88,11 +88,11 @@ struct ReviewSessionView: View {
     }
 
     private func play(_ card: Card) {
-        speak(card.sentenceText, voiceID: card.audioVoiceID, modelID: card.audioModelID)
+        speak(card.sentenceText, voiceID: card.audioVoiceID)
     }
 
-    private func speak(_ text: String, voiceID: String? = nil, modelID: String? = nil) {
-        Pronunciation.shared.speak(text, voiceID: voiceID ?? settings.resolvedVoiceID, modelID: modelID ?? settings.voiceModelID)
+    private func speak(_ text: String, voiceID: String? = nil) {
+        Pronunciation.shared.speak(text, voiceID: voiceID ?? settings.resolvedVoiceID)
     }
 }
 

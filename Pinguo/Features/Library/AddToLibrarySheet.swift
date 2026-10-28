@@ -41,10 +41,6 @@ struct AddToLibrarySheet: View {
                             }
                         }
                         .padding(.vertical, 12)
-                        Hairline()
-                        Toggle("Pre-generate audio", isOn: $settings.pregenerateAudioByDefault)
-                            .font(.body15)
-                            .padding(.vertical, 12)
                     }
                     .tint(Color.ink)
                     .padding(.horizontal, 8)
@@ -71,7 +67,6 @@ struct AddToLibrarySheet: View {
                         title: title.isEmpty ? DocumentImporter.defaultTitle(for: text) : title,
                         kind: .text,
                         makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
-                        pregeneratingAudioWith: pregenerationVoice,
                         in: modelContext
                     )
                     dismiss()
@@ -143,14 +138,9 @@ struct AddToLibrarySheet: View {
             kind: .article,
             sourceURL: address,
             makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
-            pregeneratingAudioWith: pregenerationVoice,
             in: modelContext
         )
         dismiss()
-    }
-
-    private var pregenerationVoice: (voiceID: String, modelID: String)? {
-        settings.pregenerateAudioByDefault ? (settings.resolvedVoiceID, settings.voiceModelID) : nil
     }
 
     private func handlePickedFile(_ result: Result<URL, Error>) {
@@ -176,7 +166,6 @@ struct AddToLibrarySheet: View {
                 title: title,
                 kind: kind,
                 makesCardsFromTaps: settings.makeCardsFromTapsByDefault,
-                pregeneratingAudioWith: pregenerationVoice,
                 in: modelContext
             )
             dismiss()

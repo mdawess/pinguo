@@ -1,7 +1,8 @@
 import Foundation
+import FoundationModels
 
-nonisolated struct TutorTurn: Decodable, Sendable {
-    struct Correction: Decodable, Sendable {
+nonisolated struct TutorTurn: Sendable {
+    struct Correction: Sendable {
         let needed: Bool
         let natural: String
         let changed: String
@@ -21,71 +22,110 @@ nonisolated struct ConversationLine: Sendable {
     let wasEnglish: Bool
 }
 
-/// The speaking partner: replies in the learner's level, corrects the learner's last sentence and offers replies.
+/// The speaking partner on Apple's on-device model: replies at the learner's level, corrects their last
+/// sentence and offers replies. Pinyin comes from the bundled dictionary rather than the model.
 nonisolated struct TutorService: Sendable {
-    let client = ClaudeClient()
-
-    static let schema: [String: Any] = [
-        "type": "object",
-        "properties": [
-            "reply": ["type": "string", "description": "Your next line, in Simplified Chinese only."],
-            "pinyin": ["type": "string", "description": "Pinyin with tone marks for reply, words separated by spaces."],
-            "translation": ["type": "string", "description": "Natural English translation of reply."],
-            "correction": [
-                "type": "object",
-                "properties": [
-                    "needed": ["type": "boolean"],
-                    "natural": ["type": "string", "description": "The learner's last sentence rewritten naturally. Empty when not needed."],
-                    "changed": ["type": "string", "description": "The exact substring of natural that differs from what the learner said."],
-                    "reason": ["type": "string", "description": "One short English sentence explaining the change."],
-                ],
-                "required": ["needed", "natural", "changed", "reason"],
-                "additionalProperties": false,
-            ],
-            "suggestions": [
-                "type": "array",
-                "items": ["type": "string"],
-                "description": "Two short replies the learner could say next, in Chinese at their level.",
-            ],
-        ],
-        "required": ["reply", "pinyin", "translation", "correction", "suggestions"],
-        "additionalProperties": false,
-    ]
-
-    /// Claude when it can be reached, otherwise Apple's on-device model.
-    func respond(scenario: Scenario, hskLevel: Int, deckWords: [String], history: [ConversationLine]) async throws -> (turn: TutorTurn, isOnDevice: Bool) {
-        let onDevice = { () async throws -> (turn: TutorTurn, isOnDevice: Bool) in
-            (try await OnDeviceTutor().respond(scenario: scenario, hskLevel: hskLevel, deckWords: deckWords, history: history), true)
+    @Generable
+    struct Turn {
+        @Generable
+        struct Correction {
+            @Guide(description: "True only if the learner's last Chinese sentence had a real mistake.")
+            var needed: Bool
+            @Guide(description: "The learner's last sentence rewritten naturally in Simplified Chinese. Empty when not needed.")
+            var natural: String
+            @Guide(description: "The part of natural that differs from what the learner said. Empty when not needed.")
+            var changed: String
+            @Guide(description: "One short English sentence explaining the change. Empty when not needed.")
+            var reason: String
         }
-        guard CloudReachability.shouldTryCloud, APIKeys.hasKey(for: .anthropic) else { return try await onDevice() }
-        do {
-            return (try await cloudRespond(scenario: scenario, hskLevel: hskLevel, deckWords: deckWords, history: history), false)
-        } catch where CloudReachability.isOffline(error) && OnDeviceTutor.isAvailable {
-            return try await onDevice()
+
+        @Guide(description: "Your next line in Simplified Chinese only: one to three short, simple sentences, usually ending with a question.")
+        var reply: String
+        @Guide(description: "Natural English translation of reply.")
+        var translation: String
+        var correction: Correction
+        @Guide(description: "Two different complete sentences (4–15 characters each) the learner could say back to your reply, from the learner's side of the role-play, in Simplified Chinese. Example: 我要一杯热拿铁。", .count(2))
+        var suggestions: [String]
+    }
+
+    static var unavailableReason: String? {
+        switch SystemLanguageModel.default.availability {
+        case .available: nil
+        case .unavailable(.appleIntelligenceNotEnabled): "Turn on Apple Intelligence in Settings to practise speaking."
+        case .unavailable(.modelNotReady): "Apple Intelligence is still downloading its model. Try again shortly."
+        case .unavailable(.deviceNotEligible): "Speaking practice needs a device that supports Apple Intelligence."
+        case .unavailable: "Apple Intelligence isn't available right now."
         }
     }
 
-    private func cloudRespond(scenario: Scenario, hskLevel: Int, deckWords: [String], history: [ConversationLine]) async throws -> TutorTurn {
-        let system = """
-            You are a Mandarin speaking partner for an English-speaking learner at about HSK \(hskLevel).
+    func respond(scenario: Scenario, hskLevel: Int, deckWords: [String], history: [ConversationLine]) async throws -> TutorTurn {
+        if let reason = Self.unavailableReason { throw TutorError.unavailable(reason) }
+        var instructions = """
+            You are a friendly Mandarin speaking partner for an English-speaking learner at about HSK \(hskLevel).
             Role-play: \(scenario.brief)
-
-            How to talk:
-            - Reply in Simplified Chinese only, one to three short sentences, mostly with HSK 1–\(min(6, hskLevel + 1)) vocabulary.
-            - Stay in the role and keep the conversation going, usually by ending with a question.
-            - Where it fits naturally, reuse words the learner is studying: \(deckWords.isEmpty ? "(none yet)" : deckWords.joined(separator: "、")).
-            - If the learner's last message was in English (marked [English]), they are stuck: reply in Chinese starting with how to say it (e.g. 你可以说：“…”), then continue the role-play.
-
-            Corrections: look only at the learner's last message. If it was Chinese and something is wrong or unnatural, set needed to true and give the natural sentence, the changed part and a one-line reason. If it was fine, or there is no learner message yet, set needed to false and leave the other fields empty. Don't correct punctuation or speech-recognition slips that don't change meaning.
-
-            Suggestions: two short, different things the learner could say next, at their level.
+            Always reply in simple Simplified Chinese (HSK 1–\(min(6, hskLevel + 1)) words), respond directly to what the learner just said, stay in your role and keep the conversation going.
+            If the learner wrote in English they are stuck: start with 你可以说："…" showing how to say it in Chinese, then continue.
+            Only correct real mistakes in the learner's last Chinese message.
             """
-        var messages: [ClaudeClient.Message] = history.suffix(10).map { line in
-            line.isTutor ? .assistant(line.text) : .user(line.wasEnglish ? "[English] \(line.text)" : line.text)
+        if !deckWords.isEmpty {
+            instructions += "\nWhere natural, use words the learner is studying: \(deckWords.prefix(15).joined(separator: "、"))"
         }
-        if messages.first?.role != "user" {
-            messages.insert(.user("（开始对话。Please open the conversation in your role.）"), at: 0)
+        let transcript = history.suffix(8).map { line in
+            line.isTutor ? "You: \(line.text)" : "Learner\(line.wasEnglish ? " (in English)" : ""): \(line.text)"
         }
-        return try await client.json(TutorTurn.self, system: system, messages: messages, schema: Self.schema, effort: .low)
+        let prompt = transcript.isEmpty
+            ? "Open the conversation in your role."
+            : "Conversation so far:\n\(transcript.joined(separator: "\n"))\n\nWrite your next turn."
+        let turn = try await LanguageModelSession(instructions: instructions).respond(to: prompt, generating: Turn.self).content
+        let learnerLine = history.last.flatMap { !$0.isTutor && !$0.wasEnglish ? $0.text : nil }
+        let correctionIsPlausible = learnerLine.map { Self.isPlausibleCorrection(turn.correction.natural, of: $0) } ?? false
+
+        return TutorTurn(
+            reply: turn.reply,
+            pinyin: Self.pinyin(for: turn.reply),
+            translation: turn.translation,
+            correction: TutorTurn.Correction(
+                needed: turn.correction.needed && correctionIsPlausible,
+                natural: turn.correction.natural,
+                changed: turn.correction.changed,
+                reason: turn.correction.reason
+            ),
+            suggestions: Self.usableSuggestions(turn.suggestions)
+        )
+    }
+
+    /// The small model sometimes returns blanks or word lists instead of sentences; keep only real lines.
+    static func usableSuggestions(_ suggestions: [String]) -> [String] {
+        suggestions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty && $0.count <= 24 && !$0.contains("、") }
+    }
+
+    /// The small model sometimes "corrects" a fine sentence into an unrelated one; a real correction
+    /// keeps most of the learner's characters.
+    static func isPlausibleCorrection(_ natural: String, of learner: String) -> Bool {
+        let learnerHan = learner.filter { $0.unicodeScalars.allSatisfy { (0x4E00...0x9FFF).contains($0.value) } }
+        guard !learnerHan.isEmpty, natural != learner else { return false }
+        let kept = learnerHan.filter { natural.contains($0) }.count
+        return Double(kept) / Double(learnerHan.count) >= 0.6
+    }
+
+    static func pinyin(for text: String) -> String {
+        Segmenter().tokens(in: text).compactMap { token -> String? in
+            guard token.isLexical else { return nil }
+            let word = token.text(in: text)
+            return ChineseDictionary.shared.lookup(word)?.pinyin ?? word
+        }
+        .joined(separator: " ")
+    }
+}
+
+nonisolated enum TutorError: LocalizedError {
+    case unavailable(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unavailable(let reason): reason
+        }
     }
 }

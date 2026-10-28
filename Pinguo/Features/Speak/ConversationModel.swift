@@ -11,7 +11,6 @@ final class ConversationModel {
     private(set) var isThinking = false
     private(set) var errorMessage: String?
     private(set) var messages: [Message] = []
-    private(set) var lastTurnWasOnDevice = false
 
     init(conversation: Conversation, scenario: Scenario, context: ModelContext) {
         self.conversation = conversation
@@ -49,8 +48,7 @@ final class ConversationModel {
         defer { isThinking = false }
         let history = messages.map { ConversationLine(isTutor: $0.role == .tutor, text: $0.text, wasEnglish: $0.wasEnglish) }
         do {
-            let (turn, isOnDevice) = try await tutor.respond(scenario: scenario, hskLevel: conversation.hskLevel, deckWords: deckWords, history: history)
-            lastTurnWasOnDevice = isOnDevice
+            let turn = try await tutor.respond(scenario: scenario, hskLevel: conversation.hskLevel, deckWords: deckWords, history: history)
             if turn.correction.needed, let learner = messages.last, learner.role == .learner, !learner.wasEnglish,
                !turn.correction.natural.isEmpty, turn.correction.natural != learner.text {
                 learner.correctionNatural = turn.correction.natural

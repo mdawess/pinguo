@@ -147,8 +147,4 @@ final class ReaderModel {
             store.familiarity(of: word) == .new && seen.insert(word).inserted
         }
     }
-
-    func context(around sentenceIndex: Int) -> String {
-        sentences.filter { abs($0.id - sentenceIndex) <= 1 && $0.id != sentenceIndex }.map(\.text).joined()
-    }
 }

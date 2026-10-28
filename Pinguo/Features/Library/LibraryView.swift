@@ -125,7 +125,6 @@ struct LibraryView: View {
                     NavigationLink(value: book) { BookTile(document: book) }
                         .buttonStyle(.plain)
                         .contextMenu {
-                            OfflineDownloadMenuItems(document: book)
                             deleteButton(book)
                         }
                 }
@@ -140,7 +139,6 @@ struct LibraryView: View {
                 NavigationLink(value: item) { DocumentRow(document: item) }
                     .buttonStyle(.plain)
                     .contextMenu {
-                        OfflineDownloadMenuItems(document: item)
                         deleteButton(item)
                     }
                 if item.id != otherItems.last?.id { Hairline().padding(.leading, 56) }
@@ -222,7 +220,6 @@ struct BookTile: View {
                 .padding(.bottom, 8)
             Text(document.title).font(.chineseSans(15)).lineLimit(1).foregroundStyle(Color.ink)
             Text(detail).font(.meta13).foregroundStyle(Color.inkSecondary)
-            OfflineStatusLine(document: document)
         }
     }
 
@@ -242,7 +239,6 @@ struct DocumentRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(document.title).font(.chineseSans(17)).lineLimit(1).foregroundStyle(Color.ink)
                 Text(detail).font(.meta13).foregroundStyle(Color.inkSecondary).lineLimit(1)
-                OfflineStatusLine(document: document)
             }
             Spacer(minLength: 0)
         }
