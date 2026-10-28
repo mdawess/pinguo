@@ -32,8 +32,24 @@ actor AudioCache {
         return Self.readManifest(key)
     }
 
-    /// Returns the clip for these consecutive sentences, synthesising it once if needed.
+    /// Returns the clip for these consecutive sentences, synthesising it once if needed. Without a usable
+    /// connection (or an ElevenLabs key) it falls back to the on-device voice, cached separately so the
+    /// ElevenLabs version is still fetched once back online.
     func clip(sentences: [String], voiceID: String, modelID: String) async throws -> NarrationClip {
+        if let cached = cachedClip(sentences: sentences, voiceID: voiceID, modelID: modelID) { return cached }
+        guard CloudReachability.shouldTryCloud else { return try await OnDeviceSpeech.shared.clip(sentences: sentences) }
+        do {
+            return try await cloudClip(sentences: sentences, voiceID: voiceID, modelID: modelID)
+        } catch let error as ServiceError {
+            guard case .missingKey = error else { throw error }
+            return try await OnDeviceSpeech.shared.clip(sentences: sentences)
+        } catch where CloudReachability.isOffline(error) {
+            return try await OnDeviceSpeech.shared.clip(sentences: sentences)
+        }
+    }
+
+    /// Fetches the ElevenLabs clip without falling back, for downloading audio ahead of a flight.
+    func cloudClip(sentences: [String], voiceID: String, modelID: String) async throws -> NarrationClip {
         let text = sentences.joined()
         let key = Self.key(text: text, voiceID: voiceID, modelID: modelID)
         if let cached = Self.readManifest(key) { return cached }

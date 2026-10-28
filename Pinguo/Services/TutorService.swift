@@ -52,7 +52,20 @@ nonisolated struct TutorService: Sendable {
         "additionalProperties": false,
     ]
 
-    func respond(scenario: Scenario, hskLevel: Int, deckWords: [String], history: [ConversationLine]) async throws -> TutorTurn {
+    /// Claude when it can be reached, otherwise Apple's on-device model.
+    func respond(scenario: Scenario, hskLevel: Int, deckWords: [String], history: [ConversationLine]) async throws -> (turn: TutorTurn, isOnDevice: Bool) {
+        let onDevice = { () async throws -> (turn: TutorTurn, isOnDevice: Bool) in
+            (try await OnDeviceTutor().respond(scenario: scenario, hskLevel: hskLevel, deckWords: deckWords, history: history), true)
+        }
+        guard CloudReachability.shouldTryCloud, APIKeys.hasKey(for: .anthropic) else { return try await onDevice() }
+        do {
+            return (try await cloudRespond(scenario: scenario, hskLevel: hskLevel, deckWords: deckWords, history: history), false)
+        } catch where CloudReachability.isOffline(error) && OnDeviceTutor.isAvailable {
+            return try await onDevice()
+        }
+    }
+
+    private func cloudRespond(scenario: Scenario, hskLevel: Int, deckWords: [String], history: [ConversationLine]) async throws -> TutorTurn {
         let system = """
             You are a Mandarin speaking partner for an English-speaking learner at about HSK \(hskLevel).
             Role-play: \(scenario.brief)

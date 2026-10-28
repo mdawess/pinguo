@@ -42,6 +42,7 @@ struct RootView: View {
         }
         .task {
             guard wordStates == nil else { return }
+            _ = Connectivity.shared
             settings = AppSettings.current(in: modelContext)
             let wordStates = WordStateStore(context: modelContext)
             self.wordStates = wordStates

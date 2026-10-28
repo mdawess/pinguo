@@ -43,6 +43,16 @@ xcodebuild test -project Pinguo.xcodeproj -scheme Pinguo -destination 'platform=
 The UI tests that call ElevenLabs and Claude skip themselves unless the keys are passed to the runner:
 `TEST_RUNNER_ELEVENLABS_API_KEY=… TEST_RUNNER_ANTHROPIC_API_KEY=… xcodebuild test …`.
 
+## Offline (on a flight)
+
+Without a connection, or with **Settings › Offline › Always use on-device**, Pinguo routes to Apple's on-device engines:
+
+- **Narration**: the best installed zh-CN `AVSpeechSynthesizer` voice, rendered into the same cached clip format, so sentence highlighting still works. A Premium or Enhanced voice (Settings › Accessibility › Spoken Content › Voices) sounds much better.
+- **Translation**: the Translation framework (download the Chinese–English pack from Settings › Offline).
+- **Tutor**: Foundation Models (needs Apple Intelligence), with pinyin taken from the bundled dictionary.
+
+To keep full quality in the air, use **Download for offline** (reader toolbar or Library long-press) before you leave. It caches Claude translations and ElevenLabs narration for the next three chapters or the whole book. On-device results are cached separately, so the cloud versions replace them once you're back online.
+
 ## Bundled data
 
 - `Pinguo/Resources/dictionary.sqlite` — CC-CEDICT (CC BY-SA 4.0, mdbg.net) joined with HSK levels from

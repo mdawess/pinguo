@@ -92,6 +92,11 @@ struct ConversationView: View {
                             LearnerBubble(message: message)
                         }
                     }
+                    if model.lastTurnWasOnDevice, !model.isThinking {
+                        Label("Offline · on-device tutor (Apple Intelligence)", systemImage: "airplane")
+                            .font(.meta12)
+                            .foregroundStyle(Color.inkSecondary)
+                    }
                     if model.isThinking {
                         ThinkingDots().padding(.leading, 4).id("thinking")
                     }

@@ -7,7 +7,7 @@ nonisolated enum AudioPregenerator {
             for chunk in NarrationPlanner.chunks(for: sentences) {
                 let text = Array(sentences[chunk.sentenceRange])
                 do {
-                    _ = try await AudioCache.shared.clip(sentences: text, voiceID: voiceID, modelID: modelID)
+                    _ = try await AudioCache.shared.cloudClip(sentences: text, voiceID: voiceID, modelID: modelID)
                 } catch {
                     return
                 }

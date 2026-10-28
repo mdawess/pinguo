@@ -72,6 +72,8 @@ struct SettingsView: View {
                 Text("Narration is cached by text, voice and model, so re-listening never costs credits.")
             }
 
+            OfflineSettingsSection()
+
             Section("About") {
                 Text("Dictionary: CC-CEDICT (CC BY-SA 4.0). HSK levels from complete-hsk-vocabulary.")
                     .font(.meta13)
